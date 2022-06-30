@@ -72,8 +72,8 @@ def PL_fsolve(par,sch,print):
             uout_i = Qout_i/Aout
 
             Rein_i = fds.core.Reynolds(uin_i,Din,rho,mu=eta)
-            Rex_i = fds.core.Reynolds(ux_i,Din,rho,mu=eta)
-            Reout_i = fds.core.Reynolds(uout_i,Din,rho,mu=eta)
+            Rex_i = fds.core.Reynolds(ux_i,Dx,rho,mu=eta)
+            Reout_i = fds.core.Reynolds(uout_i,Dout,rho,mu=eta)
             fin_i = fds.friction.friction_factor(Re = Rein_i,eD = ep/Din)
             fx_i = fds.friction.friction_factor(Re = Rex_i,eD=ep/Dx)
             fout_i = fds.friction.friction_factor(Re = Reout_i,eD=ep/Dout)
@@ -188,7 +188,7 @@ def PL_fsolve(par,sch,print):
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
 
-    df = pd.DataFrame(liste, columns = ['Pin','Pout','qx','Qin','Qout'])
+    df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
 
     if print == True:
         display(HTML(df.to_html()))  
