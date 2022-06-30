@@ -121,8 +121,8 @@ def PL_fsolve(par,sch,print):
     uout_0 = Qout_0/Aout
 
     Rein_0 = fds.core.Reynolds(uin_0,Din,rho,mu=eta)
-    Rex_0 = fds.core.Reynolds(ux_0,Din,rho,mu=eta)
-    Reout_0 = fds.core.Reynolds(uout_0,Din,rho,mu=eta)
+    Rex_0 = fds.core.Reynolds(ux_0,Dx,rho,mu=eta)
+    Reout_0 = fds.core.Reynolds(uout_0,Dout,rho,mu=eta)
     fin_0 = fds.friction.friction_factor(Re = Rein_0)
     fx_0 = fds.friction.friction_factor(Re = Rex_0)
     fout_0 = fds.friction.friction_factor(Re = Reout_0)
@@ -143,8 +143,8 @@ def PL_fsolve(par,sch,print):
         uout_i = Qout_i/Aout
 
         Rein_i = fds.core.Reynolds(uin_i,Din,rho,mu=eta)
-        Rex_i = fds.core.Reynolds(ux_i,Din,rho,mu=eta)
-        Reout_i = fds.core.Reynolds(uout_i,Din,rho,mu=eta)
+        Rex_i = fds.core.Reynolds(ux_i,Dx,rho,mu=eta)
+        Reout_i = fds.core.Reynolds(uout_i,Dout,rho,mu=eta)
         fin_i = fds.friction.friction_factor(Re = Rein_i)
         fx_i = fds.friction.friction_factor(Re = Rex_i)
         fout_i = fds.friction.friction_factor(Re = Reout_i)
@@ -178,10 +178,17 @@ def PL_fsolve(par,sch,print):
     # Fin de l'initialisation
 
     Xsol = sc.fsolve(fun,X0)
+    
+    # Qin = []
+    # Qout = []
+
+    # for i in range(N):
+    #     Qin.append(sum([Xsol[2*N+j]*3600000 for j in range(0,i)]))
+    #     Qout.append(sum([Xsol[2*N+j]*3600000 for j in range(i,N)]))
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
 
-    df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
+    df = pd.DataFrame(liste, columns = ['Pin','Pout','qx','Qin','Qout'])
 
     if print == True:
         display(HTML(df.to_html()))  
