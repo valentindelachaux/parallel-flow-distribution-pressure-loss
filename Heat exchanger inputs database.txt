@@ -1,0 +1,64 @@
+SPRING
+------
+
+par["N"] = 165
+
+par["Lx"] = 1.39985 # m, not used in the row calculation
+par["Ly"] = 0.001 # m
+par["Dx"] = 0.005 # m, not used in the row calculation
+par["Din"] = 0.020 # m
+par["Dout"] = 0.020 # m
+
+MICOE
+------
+
+par["N"] = 24
+
+par["Lx"] = 5.886 # m, not used in the row calculation
+par["Ly"] = 1.2285/par["N"] # m
+par["Dx"] = 0.008 # m, not used in the row calculation
+par["Din"] = 0.042 # m
+par["Dout"] = 0.042 # m
+
+# REAL SPRING OR SMALLER MANIFOLD
+# -----------
+
+par["N"] = 165
+
+par["Lx"] = 1.39985 # longueur d'un canal en m, not used in the row calculation
+par["Ly"] = 0.0008157 # distance inter canaux en m
+
+# pour le SPRING, avec 1 mm d'écart entre chaque duo de risers, et 5 mm de largeur par riser, ça fait 989 mm de largeur
+
+par["h_man"] = 0.005 # SPRING en vrai c'est 0.010
+par["l_man"] = 0.022
+
+par["Dx"] = 0.00476 # m, not used in the row calculation
+par["Din"] = (2*par["h_man"]*par["l_man"])/(par["h_man"]+par["l_man"]) # m
+par["Dout"] = par["Din"] # m
+
+par["theta"] = 90.
+
+par["rough"] = 0.0015 # PVC/plastic pipe absolute roughness is 0.0015
+
+
+CREATED SAVOSOLAR
+---------
+
+par["N"] = 171
+
+par["Lx"] = 2.274 # longueur d'un canal en m, not used in the row calculation
+par["Ly"] = 0.002 # distance inter canaux en m
+
+# pour le SPRING, avec 1 mm d'écart entre chaque duo de risers, et 5 mm de largeur par riser, ça fait 989 mm de largeur
+
+par["h_man"] = 0.030 # SPRING en vrai c'est 0.010
+par["l_man"] = 0.035
+
+par["Dx"] = 0.005 # m, not used in the row calculation
+par["Din"] = (2*par["h_man"]*par["l_man"])/(par["h_man"]+par["l_man"]) # m
+par["Dout"] = par["Din"] # m
+
+par["theta"] = 90.
+
+par["rough"] = 0.0015 # PVC/plastic pipe absolute roughness is 0.0015
