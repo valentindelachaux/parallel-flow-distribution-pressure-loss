@@ -8,28 +8,28 @@ import scipy.optimize as sc
 
 # sch = exchanger or system
 
-def Kxin(par,Qin_i,x,i): #Din, Dx, theta in par
+def Kxin(par,Qin_i,x,i,coeff): #Din, Dx, theta in par
     if par['method'] == 'Crane':
-        return fds.fittings.K_branch_diverging_Crane(D_run=par['Din'], D_branch=par['Dx'], Q_run=Qin_i, Q_branch=x, angle=par['theta'])
+        return coeff*fds.fittings.K_branch_diverging_Crane(D_run=par['Din'], D_branch=par['Dx'], Q_run=Qin_i, Q_branch=x, angle=par['theta'])
     elif par['method'] == "input":
         return par['Kxin'][i]
 
-def Kyin(par,Qout_im,x,i):
+def Kyin(par,Qout_im,x,i,coeff):
     if par['method'] == 'Crane':
-        return fds.fittings.K_run_diverging_Crane(D_run=par['Din'], D_branch=par['Dx'], Q_run=Qout_im, Q_branch=x, angle=par['theta'])
+        return coeff*fds.fittings.K_run_diverging_Crane(D_run=par['Din'], D_branch=par['Dx'], Q_run=Qout_im, Q_branch=x, angle=par['theta'])
     elif par['method'] == "input":
         return par['Kyin'][i]
 
 
-def Kxout(par,Qout_i,x,i):
+def Kxout(par,Qout_i,x,i,coeff):
     if par['method'] == 'Crane':
-        return fds.fittings.K_branch_converging_Crane(D_run=par['Dout'], D_branch=par['Dx'], Q_run=Qout_i, Q_branch=x, angle=par['theta'])
+        return coeff*fds.fittings.K_branch_converging_Crane(D_run=par['Dout'], D_branch=par['Dx'], Q_run=Qout_i, Q_branch=x, angle=par['theta'])
     elif par['method'] == "input":
         return par['Kxout'][i]
 
-def Kyout(par,Qout_i,x,i):
+def Kyout(par,Qout_i,x,i,coeff):
     if par['method'] == 'Crane':
-        return fds.fittings.K_run_converging_Crane(D_run=par['Dout'], D_branch=par['Dx'], Q_run=Qout_i, Q_branch=x, angle=par['theta'])
+        return coeff*fds.fittings.K_run_converging_Crane(D_run=par['Dout'], D_branch=par['Dx'], Q_run=Qout_i, Q_branch=x, angle=par['theta'])
     elif par['method'] == "input":
         return par['Kyout'][i]
 
@@ -51,14 +51,21 @@ def PL_fsolve(par,sch,print):
     Din = par["Din"]
     Dout = par["Dout"]
     Lx = par["Lx"]
-    Ly = par["Ly"]
+
+    c_Kxin = par["coeff_Kxin"]
+    c_Kxout = par["coeff_Kxout"]
+    c_Kyin = par["coeff_Kyin"]
+    c_Kyout = par["coeff_Kyout"]
+
+    Ly_list = par["Ly"] # N-1 values
+
     eta = par["eta"] # dynamic viscosity
 
     ep = par["rough"]
 
     rho = par["rho"]
 
-    # Fonction
+    # Fonction = système de 3N équations
 
     def fun(x):
 
@@ -72,25 +79,25 @@ def PL_fsolve(par,sch,print):
             uout_i = Qout_i/Aout
 
             Rein_i = fds.core.Reynolds(uin_i,Din,rho,mu=eta)
-            Rex_i = fds.core.Reynolds(ux_i,Din,rho,mu=eta)
-            Reout_i = fds.core.Reynolds(uout_i,Din,rho,mu=eta)
+            Rex_i = fds.core.Reynolds(ux_i,Dx,rho,mu=eta)
+            Reout_i = fds.core.Reynolds(uout_i,Dout,rho,mu=eta)
             fin_i = fds.friction.friction_factor(Re = Rein_i,eD = ep/Din)
             fx_i = fds.friction.friction_factor(Re = Rex_i,eD=ep/Dx)
             fout_i = fds.friction.friction_factor(Re = Reout_i,eD=ep/Dout)
 
-            Kxin_i = Kxin(par,Qin_i,x[2*N+i],i)
+            Kxin_i = Kxin(par,Qin_i,x[2*N+i],i,c_Kxin)
             if i >= 1:
                 Qin_im = sum([x[j] for j in range(2*N,2*N+i)])
                 Qout_im = sum([x[j] for j in range(2*N+i,3*N)])
                 uin_im = Qin_im/Ain
                 uout_im = Qout_im/Aout
-                Kyin_i = Kyin(par,Qout_im,x[2*N+i],i)
-            Kxout_i = Kxout(par,Qout_i,x[2*N+i],i)
-            Kyout_i = Kyout(par,Qout_i,x[2*N+i],i)
+                Kyin_i = Kyin(par,Qout_im,x[2*N+i],i,c_Kyin)
+            Kxout_i = Kxout(par,Qout_i,x[2*N+i],i,c_Kxout)
+            Kyout_i = Kyout(par,Qout_i,x[2*N+i],i,c_Kyout)
 
             if i>=1:
-                leq.append(x[i] - x[i-1] - (rho/2)*(uin_im**2-uin_i**2 + (fin_i*Ly*uin_i**2)/Din + Kyin_i*uin_i**2))
-                leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout_im**2-uout_i**2 + (fout_i*Ly*uout_i**2)/Dout + Kyout_i*uout_im**2))
+                leq.append(x[i] - x[i-1] - (rho/2)*(uin_im**2-uin_i**2 + (fin_i*Ly_list[i-1]*uin_i**2)/Din + Kyin_i*uin_i**2))
+                leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout_im**2-uout_i**2 + (fout_i*Ly_list[i-1]*uout_i**2)/Dout + Kyout_i*uout_im**2))
             
             if sch == "exchanger":
                 b_x = 0. # linear part
@@ -101,7 +108,7 @@ def PL_fsolve(par,sch,print):
             leq.append(x[i] - x[N+i] - (rho/2)*(b_x*ux_i+a_x*ux_i**2+Kxin_i*uin_i**2+Kxout_i*uout_i**2))
         
         leq.append(sum([x[j] for j in range(2*N,3*N)]) - QF)
-        leq.append(x[N] - 0)
+        leq.append(x[N+ref] - 0)
 
         return leq
 
@@ -109,32 +116,38 @@ def PL_fsolve(par,sch,print):
 
     X0 = np.zeros(3*N)
 
+    # Initialisation avec des débits uniformes
     for i in range(N):
         X0[2*N+i] = QF/N
 
-    i = 0
-    Qin_0 = sum([X0[j] for j in range(2*N,2*N+i+1)])
-    Qout_0 = sum([X0[j] for j in range(2*N+i,3*N)])
+    i = ref # ref = 0 or N-1
+    Qin_ref = sum([X0[j] for j in range(2*N,2*N+i+1)])
+    Qout_ref = sum([X0[j] for j in range(2*N+i,3*N)])
 
-    uin_0 = Qin_0/Ain
-    ux_0 = X0[2*N+i]/Ax
-    uout_0 = Qout_0/Aout
+    uin_ref = Qin_ref/Ain
+    ux_ref = X0[2*N+i]/Ax
+    uout_ref = Qout_ref/Aout
 
-    Rein_0 = fds.core.Reynolds(uin_0,Din,rho,mu=eta)
-    Rex_0 = fds.core.Reynolds(ux_0,Dx,rho,mu=eta)
-    Reout_0 = fds.core.Reynolds(uout_0,Dout,rho,mu=eta)
-    fin_0 = fds.friction.friction_factor(Re = Rein_0)
-    fx_0 = fds.friction.friction_factor(Re = Rex_0)
-    fout_0 = fds.friction.friction_factor(Re = Reout_0)
+    Rein_ref = fds.core.Reynolds(uin_ref,Din,rho,mu=eta)
+    Rex_ref = fds.core.Reynolds(ux_ref,Dx,rho,mu=eta)
+    Reout_ref = fds.core.Reynolds(uout_ref,Dout,rho,mu=eta)
+    fin_ref = fds.friction.friction_factor(Re = Rein_ref)
+    fx_ref = fds.friction.friction_factor(Re = Rex_ref)
+    fout_ref = fds.friction.friction_factor(Re = Reout_ref)
 
-    Kxin_0 = Kxin(par,Qin_0,X0[2*N+i],0)
-    Kxout_0 = Kxout(par,Qout_0,X0[2*N+i],0)
+    Kxin_ref = Kxin(par,Qin_ref,X0[2*N+i],ref,c_Kxin)
+    Kxout_ref = Kxout(par,Qout_ref,X0[2*N+i],ref,c_Kxout)
 
-    X0[N+0] = 0
-    DPx_0 = (rho/2)*(fx_0*(Lx/Dx)*ux_0**2+Kxin_0*uin_0**2+Kxout_0*uout_0**2)
-    X0[0] = DPx_0+X0[N+0]
+    X0[N+ref] = 0
+    DPx_ref = (rho/2)*(fx_ref*(Lx/Dx)*ux_ref**2+Kxin_ref*uin_ref**2+Kxout_ref*uout_ref**2)
+    X0[ref] = DPx_ref+X0[N+ref]
 
-    for i in range(1,N):
+    if ref == 0:
+        ra = range(1,N)
+    else:
+        ra = range(0,N-1) 
+
+    for i in ra:
         Qin_i = sum([X0[j] for j in range(2*N,2*N+i)])
         Qout_i = sum([X0[j] for j in range(2*N+i,3*N)])
         
@@ -149,15 +162,15 @@ def PL_fsolve(par,sch,print):
         fx_i = fds.friction.friction_factor(Re = Rex_i)
         fout_i = fds.friction.friction_factor(Re = Reout_i)
 
-        Kxin_i = Kxin(par,Qin_i,X0[2*N+i],i)
+        Kxin_i = Kxin(par,Qin_i,X0[2*N+i],i,c_Kxin)
         if i >= 1: # useless because the loop is for i = 1 to N-1 included
             Qin_im = sum([X0[j] for j in range(2*N,2*N+i+1)])
             Qout_im = sum([X0[j] for j in range(2*N+i,3*N)])
             uin_im = Qin_im/Ain
             uout_im = Qout_im/Aout
-            Kyin_i = Kyin(par,Qout_im,X0[2*N+i],i)
-        Kxout_i = Kxout(par,Qout_i,X0[2*N+i],i)
-        Kyout_i = Kyout(par,Qout_i,X0[2*N+i],i)
+            Kyin_i = Kyin(par,Qout_im,X0[2*N+i],i,c_Kyin)
+        Kxout_i = Kxout(par,Qout_i,X0[2*N+i],i,c_Kxout)
+        Kyout_i = Kyout(par,Qout_i,X0[2*N+i],i,c_Kyout)
 
         if sch == "exchanger":
             pass
@@ -172,7 +185,7 @@ def PL_fsolve(par,sch,print):
             a_x = par["a_x"]
             b_x = par["b_x"]
 
-        X0[i] = X0[i-1] + (rho/2)*(uin_im**2-uin_i**2 + (fin_i*Ly*uin_i**2)/Din + Kyin_i*uin_i**2)
+        X0[i] = X0[i-1] + (rho/2)*(uin_im**2-uin_i**2 + (fin_i*Ly_list[i-1]*uin_i**2)/Din + Kyin_i*uin_i**2)
         X0[N+i] = X0[N+i-1] + (rho/2)*(b_x*ux_i+a_x*ux_i**2+Kxin_i*uin_i**2+Kxout_i*uout_i**2)
 
     # Fin de l'initialisation
@@ -188,7 +201,7 @@ def PL_fsolve(par,sch,print):
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
 
-    df = pd.DataFrame(liste, columns = ['Pin','Pout','qx','Qin','Qout'])
+    df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
 
     if print == True:
         display(HTML(df.to_html()))  
