@@ -1,3 +1,7 @@
 
 *.pyc
 *.pyc
+<<<<<<< Updated upstream
+=======
+__pycache__/model_fsolve.cpython-310.pyc
+>>>>>>> Stashed changes
