@@ -5,3 +5,4 @@
 =======
 __pycache__/model_fsolve.cpython-310.pyc
 >>>>>>> Stashed changes
+*.pyc
