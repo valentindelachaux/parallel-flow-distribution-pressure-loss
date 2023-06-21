@@ -9,8 +9,6 @@ par["Dx"] = 0.005 # m, not used in the row calculation
 par["Din"] = 0.020 # m
 par["Dout"] = 0.020 # m
 
-<<<<<<< Updated upstream
-=======
 # MICOE - GOOD
 # ------
 
@@ -43,7 +41,6 @@ par["rough"] = 0.001 # aluminium = 0.001 mm
 
 # End of inputs
 
->>>>>>> Stashed changes
 MICOE
 ------
 
@@ -55,8 +52,6 @@ par["Dx"] = 0.008 # m, not used in the row calculation
 par["Din"] = 0.042 # m
 par["Dout"] = 0.042 # m
 
-<<<<<<< Updated upstream
-=======
 par["manifold"] = "tubular"
 
 # Z-type or U-type
@@ -70,7 +65,6 @@ PL_measured = (9.74292*1E-7*list_Q_L**2 + 0.001472206*list_Q_L)*1000
 
 
 
->>>>>>> Stashed changes
 # REAL SPRING OR SMALLER MANIFOLD
 # -----------
 
@@ -113,8 +107,6 @@ par["Dout"] = par["Din"] # m
 par["theta"] = 90.
 
 par["rough"] = 0.0015 # PVC/plastic pipe absolute roughness is 0.0015
-<<<<<<< Updated upstream
-=======
 
 # V4.4
 # -----------
@@ -232,4 +224,47 @@ par["ref"] = 0 # Z
 par["theta"] = 90.
 
 par["rough"] = 0.001 # aluminium = 0.001 mm
->>>>>>> Stashed changes
+
+# V4.41
+# ------
+
+par["N"] = 300
+
+par["Lx"] = (2*(50+10+635)+100+2*(26+10+10))/1000 # m, not used in the system calculation
+par["inter_riser"] = 0.00035
+
+par["EP"] = 10
+par["N_per_EP"] = int(par["N"]/par["EP"])
+
+petit = (par["N_per_EP"]-1)*[par["inter_riser"]]
+long = [0.013]
+par["Ly"] = (par["EP"]-1)*(petit+long)+petit # m
+
+par["tot_width"] = 0.990
+# par["l_riser"] = (par["tot_width"]-par["inter_riser"]*(par["N"]-1))/par["N"]
+par["l_riser"] = 0.003
+
+par["h_riser"] = 0.002
+
+par["Dx"] = 2*(par["h_riser"]*par["l_riser"])/(par["h_riser"]+par["l_riser"]) # m, not used in the system calculation
+par["Din"] = 0.018 # m
+par["Dout"] = par["Din"] # m
+
+par["manifold"] = "tubular" # or rectangular
+
+coeff = 1.
+par["coeff_Kxin"] = coeff
+par["coeff_Kxout"] = coeff
+par["coeff_Kyin"] = coeff
+par["coeff_Kyout"] = coeff
+
+# Z-type or U-type
+
+# par["ref"] = par["N"]-1 # U
+par["ref"] = 0 # Z
+
+# Parameters
+
+par["theta"] = 90.
+
+par["rough"] = 0.001 # aluminium = 0.001 mm

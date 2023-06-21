@@ -16,44 +16,6 @@ import model_fsolve as modf
 
 import fluids as fds
 
-def preproc(par,param_name,test_value):
-    if param_name == "h_riser":
-        par["h_riser"] = test_value
-        par["Dx"] = 2*(par["h_riser"]*par["l_riser"])/(par["h_riser"]+par["l_riser"])
-    elif param_name == "N_riser":
-        par["N"] = test_value
-        par["l_riser"] = (par["tot_width"]-par["inter_riser"]*(par["N"]-1))/par["N"]
-
-        par["N_per_EP"] = int(par["N"]/par["EP"])
-
-        petit = (par["N_per_EP"]-1)*[par["inter_riser"]]
-        long = [0.013]
-        par["Ly"] = (par["EP"]-1)*(petit+long)+petit # m
-    else:
-        pass
-
-def modf_parametric_flow_rates(par,list_Q):
-    list_PL = []
-    list_tabl = []
-    list_mn = []
-    list_std = []
-
-    for Q in list_Q:
-        print(Q)
-        par["QF"] = Q
-        # Speed and Reynolds at inlet manifold
-        par["U"] = par["QF"]/par["Ain"]
-        par["Reman"] = par["U"]*(par["rho"]*par["Din"])/par["eta"]
-
-        tabl,res = modf.PL_fsolve(par,par["sch"],False)
-        list_PL.append(res)
-        list_tabl.append(tabl)
-
-        list_mn.append(tabl['qx'].mean()) # fow rate qx is in L/h
-        list_std.append(tabl['qx'].std())
-    
-    return list_PL,list_tabl,list_mn,list_std
-
 
 # Calcul des contributions des différents éléments -> procédure modifiant les éléments de list_tabl
 
