@@ -196,12 +196,6 @@ def PL_fsolve(par,cond,q_init=[],print=False):
         Kyout_i = Kyout(Dout,Dx,theta,Qout_i,X0[2*N+i],i,c_Kyout)
 
         if par["sch"] == "exchanger":
-            pass
-        elif par["sch"] == "system":
-            b_x = 0. # linear part
-            a_x = fx_i*(Lx/Dx) # second order part
-
-        if par["sch"] == "exchanger":
             b_x = 0. # linear part
             a_x = fx_i*(Lx/Dx) # second order part
         elif par["sch"] == "system":

@@ -62,19 +62,6 @@ class hx_harp:
         self.riser = duct(par["shape_riser"],par["D_riser"],par["h_riser"],par["w_riser"],par["L_riser"])
         self.man = duct(par["shape_man"],par["D_man"],par["h_man"],par["w_man"],par["L_man"])
 
-        # self.shape_man = par["shape_man"]
-        # if self.shape_man == "tubular":
-        #     self.Din = par["Din"]
-        #     self.Dout = par["Dout"]
-        #     self.Ain = math.pi*(self.Din/2)**2
-        #     self.Aout = math.pi*(self.Dout/2)**2
-        # elif self.shape_man == "rectangular":
-        #     self.h_man = par["h_man"]
-        #     self.w_man = par["w_man"]
-        #     self.Din = 2*(self.h_man*self.w_man)/(self.h_man+self.w_man)
-        #     self.Ain = self.h_man * self.w_man
-        #     self.Aout = self.Ain
-
         self.type = par["type"]
         if self.type == "Z":
             self.ref = 0
@@ -92,8 +79,11 @@ class hx_harp:
         self.coeff_Kyout = par["coeff_Kyout"]
 
     def compute_metrics(self):
-        self.M = (self.N*math.pi*self.riser.D)/self.man.A
+        self.M = (self.N*math.pi*(self.riser.D/2)**2)/self.man.A
         self.E = self.man.L/self.man.D
+    
+        self.R_D = self.riser.D/self.man.D
+        self.A_R = self.N*self.R_D**2
 
     def make_dict(self):
         dict_riser = dict(("{}_{}".format(k,"riser"),v) for k,v in vars(self.riser).items())
@@ -151,7 +141,7 @@ class system_harp:
 
 class duct:
 
-    def __init__(self,shape,D,h,w,L):
+    def __init__(self,shape,D=None,h=None,w=None,L=None,k=None):
         self.shape = shape
 
         if self.shape == "tubular":
@@ -164,6 +154,14 @@ class duct:
             self.A = self.h*self.w
 
         self.L = L
+        if k != None:
+            self.k = k
+        else:
+            self.k = 0.001*1e-3
+
+    def change_D(self,D):
+        self.D = D
+        self.A = math.pi*(self.D/2)**2
 
     def regular_PL(self,Vdot,fluid,glycol_rate,p,T):
         """Computes regular pressure losses for the duct in kPa"""
@@ -178,8 +176,38 @@ class duct:
         eta = PropsSI('V', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
 
         Re = fds.core.Reynolds(V,self.D,rho,mu=eta) # viscosité dynamique mu ou eta)
-        f = fds.friction.friction_factor(Re = Re,eD=0.001/self.D)
+        f = fds.friction.friction_factor(Re = Re,eD=self.k/self.D)
         K = fds.K_from_f(f,self.L,self.D)
+        dP = fds.dP_from_K(K,rho,V=V)/1000
+
+        return dP
+    
+class bend:
+
+    def __init__(self, D, angle, rc=None, bend_diameters=None, roughness=0.0, L_unimpeded=None):
+
+        self.D = D
+        self.A = math.pi*(self.D/2)**2
+        self.angle = angle
+        self.rc = rc
+        self.bend_diameters = bend_diameters
+        self.roughness = roughness
+        self.L_unimpeded = L_unimpeded
+
+    def singular_PL(self,Vdot,fluid,glycol_rate,p,T):
+
+        
+        Dv = Vdot/(3.6*1E6)
+        V = Dv/self.A
+
+        p = dp.check_unit_p(p)
+        T = dp.check_unit_T(T)
+
+        rho = PropsSI('D', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
+        eta = PropsSI('V', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
+
+        Re = fds.core.Reynolds(V,self.D,rho,mu=eta) # viscosité dynamique mu ou eta)
+        K = fds.fittings.bend_rounded(self.D, self.angle, rc=self.rc, bend_diameters=self.bend_diameters, Re=Re, roughness=self.roughness, L_unimpeded=self.L_unimpeded)
         dP = fds.dP_from_K(K,rho,V=V)/1000
 
         return dP
