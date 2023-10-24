@@ -85,6 +85,53 @@ def PL_fsolve(par,cond,q_init=[],print=False):
     rho = cond["rho"]
 
     # Fonction = système de 3N équations
+    def calc(q_vect):
+        """
+        Args : 
+            q_vect : list, débits dans les canaux
+
+        Returns :
+            Qin : list, débits manifold inlet
+            Qout : list, débits manifold outlet
+            uin : list, vitesses manifold intlet
+            ux : list, vitesses canaux
+            uout : list, vitesses manifold outlet
+            Rein : list, nombre de Reynolds manifold inlet
+            Rex : list, nombre de Reynolds canaux
+            Reout : list, nombre de Reynolds manifold outlet
+            fin : list, coefficient pertes de charges régulières manifold inlet
+            fx : list, coefficient pertes de charges régulières canaux
+            fout : list, coefficient pertes de charges régulières manifold outlet
+            Kxin : list, coefficient pertes de charges singulières t manifold inlet selon axe x
+            Kyin : list, coefficient pertes de charges singulières t manifold inlet selon axe y
+            Kxout : list, coefficient pertes de charges singulières t manifold outlet selon axe x
+            Kyout : list, coefficient pertes de charges singulières t manifold outlet selon axe y
+        """
+    
+        q_vect = np.array(q_vect)
+        Qin = np.array([np.sum(q_vect[:i+1]) for i in range(N)])
+        
+        if ref == 0 : # Z-type
+            Qout = np.array([np.sum(q_vect[i:N]) for i in range(N)])
+        else : # U-type
+            Qout = Qin.copy()
+
+        uin = Qin/Ain
+        ux = q_vect/Ax
+        uout = Qout/Aout
+        Rein = fds.core.Reynolds(uin,Din,rho,mu=eta)
+        Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
+        Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
+        fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)] # fonction non vectorisée
+        fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)]
+        fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/Dout) for i in range(N)]
+        Kx_in = [Kxin(Din,Dx,theta,Qin[i],q_vect[i],i,c_Kxin) for i in range(N)]
+        Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
+        Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
+        Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
+
+        return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out
+    
 
     def fun(x):
         """
@@ -95,55 +142,8 @@ def PL_fsolve(par,cond,q_init=[],print=False):
             leq : list, system of equations to which x is subjected
         """ 
         leq = []
-
-        def calc(q_vect):
-            """
-            Args : 
-                q_vect : list, débits dans les canaux
-
-            Returns :
-                Qin : list, débits manifold inlet
-                Qout : list, débits manifold outlet
-                uin : list, vitesses manifold intlet
-                ux : list, vitesses canaux
-                uout : list, vitesses manifold outlet
-                Rein : list, nombre de Reynolds manifold inlet
-                Rex : list, nombre de Reynolds canaux
-                Reout : list, nombre de Reynolds manifold outlet
-                fin : list, coefficient pertes de charges régulières manifold inlet
-                fx : list, coefficient pertes de charges régulières canaux
-                fout : list, coefficient pertes de charges régulières manifold outlet
-                Kxin : list, coefficient pertes de charges singulières t manifold inlet selon axe x
-                Kyin : list, coefficient pertes de charges singulières t manifold inlet selon axe y
-                Kxout : list, coefficient pertes de charges singulières t manifold outlet selon axe x
-                Kyout : list, coefficient pertes de charges singulières t manifold outlet selon axe y
-            """
-        
-            q_vect = np.array(q_vect)
-            Qin = np.array([np.sum(q_vect[:i+1]) for i in range(N)])
-            
-            if ref == 0 : # Z-type
-                Qout = np.array([np.sum(q_vect[i:N]) for i in range(N)])
-            else : # U-type
-                Qout = Qin.copy()
-
-            uin = Qin/Ain
-            ux = q_vect/Ax
-            uout = Qout/Aout
-            Rein = fds.core.Reynolds(uin,Din,rho,mu=eta)
-            Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
-            Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
-            fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)] # fonction non vectorisée
-            fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)]
-            fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/Dout) for i in range(N)]
-            Kx_in = [Kxin(Din,Dx,theta,Qin[i],q_vect[i],i,c_Kxin) for i in range(N)]
-            Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
-            Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
-            Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
-
-            return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out
-        
         Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out = calc(x[2*N:3*N])
+
         for i in range(N):
             if i>=1:
                     
@@ -177,72 +177,31 @@ def PL_fsolve(par,cond,q_init=[],print=False):
     else:
         for i in range(N):
             X0[2*N+i] = q_init[i]
-            
-    i = ref # ref = 0 or N-1
-    Qin_ref = sum([X0[j] for j in range(2*N,2*N+i+1)])
-    Qout_ref = sum([X0[j] for j in range(2*N+i,3*N)])
 
-    uin_ref = Qin_ref/Ain
-    ux_ref = X0[2*N+i]/Ax
-    uout_ref = Qout_ref/Aout
+    Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0 = calc(X0[2*N:]) 
 
-    Rein_ref = fds.core.Reynolds(uin_ref,Din,rho,mu=eta)
-    Rex_ref = fds.core.Reynolds(ux_ref,Dx,rho,mu=eta)
-    Reout_ref = fds.core.Reynolds(uout_ref,Dout,rho,mu=eta)
-    fin_ref = fds.friction.friction_factor(Re = Rein_ref)
-    fx_ref = fds.friction.friction_factor(Re = Rex_ref)
-    fout_ref = fds.friction.friction_factor(Re = Reout_ref)
-
-    Kxin_ref = Kxin(Din,Dx,theta,Qin_ref,X0[2*N+i],ref,c_Kxin)
-    Kxout_ref = Kxout(Dout,Dx,theta,Qout_ref,X0[2*N+i],ref,c_Kxout)
-
-    X0[N+ref] = 0
-    DPx_ref = (rho/2)*(fx_ref*(Lx/Dx)*ux_ref**2+Kxin_ref*uin_ref**2+Kxout_ref*uout_ref**2)
-    X0[ref] = DPx_ref+X0[N+ref]
-
-    if ref == 0: 
-        ra_in = range(1,N)
-        ra_out = range(1,N)
-    else:
-        ra_in = range(1,N)
-        ra_out = range(0,N-1) 
-
-    for i in range(max(ra_in[0], ra_out[0]), min(ra_in[-1], ra_out[-1])+1): #intersection entre les range in et out
-        Qin_i = sum([X0[j] for j in range(2*N,2*N+i)])
-        Qout_i = sum([X0[j] for j in range(2*N+i,3*N)])
-
-        uin_i = Qin_i/Ain
-        ux_i = X0[2*N+i]/Ax
-        uout_i = Qout_i/Aout
-
-        Rein_i = fds.core.Reynolds(uin_i,Din,rho,mu=eta)
-        Rex_i = fds.core.Reynolds(ux_i,Dx,rho,mu=eta)
-        Reout_i = fds.core.Reynolds(uout_i,Dout,rho,mu=eta)
-        fin_i = fds.friction.friction_factor(Re = Rein_i)
-        fx_i = fds.friction.friction_factor(Re = Rex_i)
-        fout_i = fds.friction.friction_factor(Re = Reout_i)
-
-        Kxin_i = Kxin(Din,Dx,theta,Qin_i,X0[2*N+i],i,c_Kxin)
-        if i >= 1: # useless because the loop is for i = 1 to N-1 included
-            Qin_im = sum([X0[j] for j in range(2*N,2*N+i+1)])
-            Qout_im = sum([X0[j] for j in range(2*N+i,3*N)])            
-            uin_im = Qin_im/Ain
-            uout_im = Qout_im/Aout
-            Kyin_i = Kyin(Din,Dx,theta,Qin_im,X0[2*N+i],i,c_Kyin)
-
-        Kxout_i = Kxout(Dout,Dx,theta,Qout_i,X0[2*N+i],i,c_Kxout)
-        Kyout_i = Kyout(Dout,Dx,theta,Qout_i,X0[2*N+i],i,c_Kyout)
-
-        if par["sch"] == "exchanger":
+    if par["sch"] == "exchanger":
             b_x = 0. # linear part
-            a_x = fx_i*(Lx/Dx) # second order part
-        elif par["sch"] == "system":
+            a_x = fx_0[i]*(Lx/Dx) # second order part
+    elif par["sch"] == "system":
             a_x = par["a_x"]
             b_x = par["b_x"]
 
-        X0[i] = X0[i-1] + (rho/2)*(uin_im**2-uin_i**2 + (fin_i*Ly_list[i-1]*uin_i**2)/Din + Kyin_i*uin_i**2)
-        X0[N+i] = X0[N+i-1] + (rho/2)*(b_x*ux_i+a_x*ux_i**2+Kxin_i*uin_i**2+Kxout_i*uout_i**2)        
-    # Fin de l'initialisation
+
+    dPin_0 = [(rho/2)*(uin_0[i-1]**2-uin_0[i]**2 + (fin_0[i]*Ly_list[i-1]*uin_0[i]**2)/Din + Kyin_0[i]*uin_0[i]**2) for i in range(1,N)]
+    DPx_ref = (rho/2)*(fx_0[ref]*(Lx/Dx)*ux_0[ref]**2+Kxin_0[ref]*uin_0[ref]**2+Kxout_0[ref]*uout_0[ref]**2)
+    Pin_0 = [DPx_ref + sum(dPin_0[:i]) for i in range(N)]
+
+    if ref == 0:
+        dPout_0 = [(rho/2)*(b_x*ux_0[i]+a_x*ux_0[i]**2+Kxin_0[i]*uin_0[i]**2+Kxout_0[i]*uout_0[i]**2) for i in range(1,N)]
+        Pout_0 = [sum(dPout_0[:i]) for i in range(N)]
+
+    else :
+        dPout_0 = [(rho/2)*(b_x*ux_0[i]+a_x*ux_0[i]**2+Kxin_0[i]*uin_0[i]**2+Kxout_0[i]*uout_0[i]**2) for i in range(N-1)]        
+        Pout_0 = [- sum(dPout_0[i:]) for i in range(N)]
+
+    X0[:N]=Pin_0
+    X0[N:2*N]=Pout_0
 
     Xsol = sc.fsolve(fun,X0)
     
