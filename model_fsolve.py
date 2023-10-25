@@ -52,7 +52,7 @@ def PL_fsolve_range(par,cond,list_Dv):
     return list_PL,list_tabl,list_mn,list_std
 
 
-def PL_fsolve(par,cond,q_init=[],print=False):
+def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
 
     # Parameters
     eps = cond["eps"]
@@ -121,6 +121,7 @@ def PL_fsolve(par,cond,q_init=[],print=False):
         uout = Qout/Aout
         Rein = fds.core.Reynolds(uin,Din,rho,mu=eta)
         Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
+        Lex = 0.05*np.sqrt(4*Ax/np.pi)*Rex
         Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
         fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)] # fonction non vectorisée
         fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)]
@@ -130,7 +131,7 @@ def PL_fsolve(par,cond,q_init=[],print=False):
         Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
         Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
 
-        return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out
+        return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex
     
 
     def fun(x):
@@ -142,7 +143,7 @@ def PL_fsolve(par,cond,q_init=[],print=False):
             leq : list, system of equations to which x is subjected
         """ 
         leq = []
-        Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out = calc(x[2*N:3*N])
+        Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex = calc(x[2*N:3*N])
 
         for i in range(N):
             if i>=1:
@@ -156,7 +157,8 @@ def PL_fsolve(par,cond,q_init=[],print=False):
                                 
             if par["sch"] == "exchanger":
                 b_x = 0. # linear part
-                a_x = fx[i]*(Lx/Dx) # second order part
+                a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
+                        
             elif par["sch"] == "system":
                 a_x = par["a_x"]
                 b_x = par["b_x"]
@@ -178,7 +180,7 @@ def PL_fsolve(par,cond,q_init=[],print=False):
         for i in range(N):
             X0[2*N+i] = q_init[i]
 
-    Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0 = calc(X0[2*N:]) 
+    Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0, Lex_0 = calc(X0[2*N:]) 
 
     if par["sch"] == "exchanger":
             b_x = 0. # linear part
