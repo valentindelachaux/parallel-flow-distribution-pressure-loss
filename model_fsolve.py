@@ -130,8 +130,11 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
         Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
         Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
         Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
+        Kse = fds.fittings.contraction_sharp(1.5*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) # 
+        K_se = Kse*np.array([0.1, 0.3, 0.6])
+        K_se = np.concatenate((np.zeros(N-len(K_se)), K_se))
 
-        return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex
+        return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex
     
 
     def fun(x):
@@ -143,13 +146,13 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
             leq : list, system of equations to which x is subjected
         """ 
         leq = []
-        Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex = calc(x[2*N:3*N])
+        Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(x[2*N:3*N])
 
+
+        
         for i in range(N):
             if i>=1:
-                    
-                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i]**2))
-
+                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i]**2 - K_se[i] * uin[N-1]**2))
                 if ref == 0 :
                     leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i]*uout[i-1]**2))
                 else :
@@ -180,7 +183,7 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
         for i in range(N):
             X0[2*N+i] = q_init[i]
 
-    Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0, Lex_0 = calc(X0[2*N:]) 
+    Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0, Kse_0, Lex_0 = calc(X0[2*N:]) 
 
     if par["sch"] == "exchanger":
             b_x = 0. # linear part
@@ -215,10 +218,25 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
     #     Qout.append(sum([Xsol[2*N+j]*3600000 for j in range(i,N)]))
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
+    # P_loss_se = K_se * uin[N-1]
+    Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(Xsol[2*N:3*N])
+    
+    PL_e = (rho/2)*np.array([sum([K_se[j]*uin[N-1]**2 for j in range(i,N)]) for i in range(N)])
+    PL_riser = (rho/2)*np.array([b_x*ux[i]+a_x*ux[i]**2 for i in range(N)])
 
+    if ref==0:
+        PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(0,i-1)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
+        PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(1,i+1)]) for i in range(N)])
+
+    else :
+        PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(i+1,N)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
+        PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(i+1,N)]) for i in range(N)])
+
+    PL_tot = PL_e + PL_riser + PL_t + PL_man
     df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
+    df_PL = pd.DataFrame((list(zip(PL_tot, 100*PL_e/PL_tot, 100*PL_man/PL_tot, 100*PL_riser/PL_tot, 100*PL_t/PL_tot))), columns = ["Total PL", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee"])
 
     if print == True:
         display(HTML(df.to_html()))  
 
-    return df,Xsol[N-1]
+    return df,Xsol[N-1], df_PL
