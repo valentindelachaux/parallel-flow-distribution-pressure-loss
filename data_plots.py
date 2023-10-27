@@ -1,32 +1,10 @@
-import math
-import sys
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import matplotlib.ticker as mtick
-from matplotlib.cm import get_cmap
-# import addcopyfighandler
 
-import seaborn as sns
+def PL_percent(PL):
+    PL_per = pd.DataFrame((list(zip(PL["Total PL"], 100*PL["SPL entrance"]/PL["Total PL"], 100*PL["RPL manifold"]/PL["Total PL"], 100*PL["RPL riser"]/PL["Total PL"], 100*PL["SPL tee"]/PL["Total PL"]))), columns = ["Total PL", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee"])
+    PL_per.reset_index().plot(x='index', y= ["SPL entrance", "RPL manifold", "RPL riser", "SPL tee"], style='o', xlabel='N° riser', ylabel='% head loss contribution')
 
-from IPython.core.display import HTML
-
-sys.path.append("../RD-systems-and-test-benches/utils")
-import data_processing as dp
-
-import model_fsolve as modf
-
-import scipy.optimize as sco
-import scipy.interpolate as sci
-
-import simu as sim
-
-import hx_hydraulic as hxhy
-import from_excel as fe
-
-import fluids as fds
-from CoolProp.CoolProp import PropsSI
-
-import openpyxl as opxl
+def PL_hist(PL):
+    PL.plot.bar(y=['SPL entrance', 'RPL manifold', 'RPL riser', 'SPL tee'], stacked = True, xlabel='N° riser', ylabel='Pressure loss')

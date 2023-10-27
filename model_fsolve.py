@@ -130,8 +130,8 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
         Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
         Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
         Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
-        Kse = fds.fittings.contraction_sharp(1.5*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) # 
-        K_se = Kse*np.array([0.1, 0.3, 0.6])
+        Kse = fds.fittings.contraction_sharp(0.5*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) 
+        K_se = Kse*np.array([0.05, 0.1, 0.25, 0.6])
         K_se = np.concatenate((np.zeros(N-len(K_se)), K_se))
 
         return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex
@@ -152,7 +152,7 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
         
         for i in range(N):
             if i>=1:
-                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i]**2 - K_se[i] * uin[N-1]**2))
+                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i]**2 + K_se[i] * uin[N-1]**2))
                 if ref == 0 :
                     leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i]*uout[i-1]**2))
                 else :
@@ -165,7 +165,7 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
             elif par["sch"] == "system":
                 a_x = par["a_x"]
                 b_x = par["b_x"]
-            leq.append(x[i] - x[N+i] - (rho/2)*(b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
+            leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
 
         leq.append(sum([x[j] for j in range(2*N,3*N)]) - QF)
         leq.append(x[N+ref] - 0)
@@ -209,19 +209,12 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
     X0[N:2*N]=Pout_0
 
     Xsol = sc.fsolve(fun,X0)
-    
-    # Qin = []
-    # Qout = []
-
-    # for i in range(N):
-    #     Qin.append(sum([Xsol[2*N+j]*3600000 for j in range(0,i)]))
-    #     Qout.append(sum([Xsol[2*N+j]*3600000 for j in range(i,N)]))
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
-    # P_loss_se = K_se * uin[N-1]
+
     Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(Xsol[2*N:3*N])
     
-    PL_e = (rho/2)*np.array([sum([K_se[j]*uin[N-1]**2 for j in range(i,N)]) for i in range(N)])
+    PL_e = -(rho/2)*np.array([sum(K_se)*uin[N-1]**2 - sum([K_se[j]*uin[N-1]**2 for j in range(i+1,N)]) for i in range(N)])
     PL_riser = (rho/2)*np.array([b_x*ux[i]+a_x*ux[i]**2 for i in range(N)])
 
     if ref==0:
@@ -231,10 +224,11 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
     else :
         PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(i+1,N)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
         PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(i+1,N)]) for i in range(N)])
-
     PL_tot = PL_e + PL_riser + PL_t + PL_man
+    PL_tot2 = np.array([(rho/2)*(sum(K_se)*uin[N-1]**2 + uin[N-1]**2 - uout[ref]**2) + Xsol[N-1]-Xsol[N+ref] for i in range(N)])
+
     df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
-    df_PL = pd.DataFrame((list(zip(PL_tot, 100*PL_e/PL_tot, 100*PL_man/PL_tot, 100*PL_riser/PL_tot, 100*PL_t/PL_tot))), columns = ["Total PL", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee"])
+    df_PL = pd.DataFrame((list(zip(PL_tot,PL_tot2, PL_e, PL_man, PL_riser, PL_t))), columns = ["Total PL", "Total PL en vrai", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee"])
 
     if print == True:
         display(HTML(df.to_html()))  
