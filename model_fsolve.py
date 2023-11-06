@@ -32,6 +32,12 @@ def Kyout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
     elif method == "input":
         return method['Kyout'][i]
 
+def change_diameter(par, D, name='man'):
+    former = par['D_'+ name]
+    par['D_'+ name] = D
+    par['A_' + name] *= (D/former)**2
+
+
 def PL_fsolve_range(par,cond,list_Dv):
     list_PL = []
     list_tabl = []
@@ -39,20 +45,19 @@ def PL_fsolve_range(par,cond,list_Dv):
     list_std = []
 
     for Dv in list_Dv:
-        print(Dv)
         cond["Dv"] = Dv
 
-        tabl,res = PL_fsolve(par,cond)
+        tabl,res,PrL,u,K = PL_fsolve(par,cond)
         list_PL.append(res)
         list_tabl.append(tabl)
 
         list_mn.append(tabl['qx'].mean()) # fow rate qx is in L/h
         list_std.append(tabl['qx'].std())
     
-    return list_PL,list_tabl,list_mn,list_std
+    return np.array(list_PL),list_tabl,list_mn,list_std
 
 
-def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
+def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25, DR = 1.):
 
     # Parameters
     eps = cond["eps"]
@@ -130,7 +135,7 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
         Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
         Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
         Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
-        Kse = fds.fittings.contraction_sharp(0.5*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) 
+        Kse = fds.fittings.contraction_sharp(DR*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) 
         K_se = Kse*np.array([0.05, 0.1, 0.25, 0.6])
         K_se = np.concatenate((np.zeros(N-len(K_se)), K_se))
 
@@ -147,7 +152,6 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
         """ 
         leq = []
         Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(x[2*N:3*N])
-
 
         
         for i in range(N):
@@ -196,13 +200,12 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
     dPin_0 = [(rho/2)*(uin_0[i-1]**2-uin_0[i]**2 + (fin_0[i]*Ly_list[i-1]*uin_0[i]**2)/Din + Kyin_0[i]*uin_0[i]**2) for i in range(1,N)]
     DPx_ref = (rho/2)*(fx_0[ref]*(Lx/Dx)*ux_0[ref]**2+Kxin_0[ref]*uin_0[ref]**2+Kxout_0[ref]*uout_0[ref]**2)
     Pin_0 = [DPx_ref + sum(dPin_0[:i]) for i in range(N)]
-
     if ref == 0:
-        dPout_0 = [(rho/2)*(b_x*ux_0[i]+a_x*ux_0[i]**2+Kxin_0[i]*uin_0[i]**2+Kxout_0[i]*uout_0[i]**2) for i in range(1,N)]
+        dPout_0 = [(rho/2)*(b_x*ux_0[i]+fx_0[i]*(Lx/Dx)*ux_0[i]**2+Kxin_0[i]*uin_0[i]**2+Kxout_0[i]*uout_0[i]**2) for i in range(1,N)]
         Pout_0 = [sum(dPout_0[:i]) for i in range(N)]
 
     else :
-        dPout_0 = [(rho/2)*(b_x*ux_0[i]+a_x*ux_0[i]**2+Kxin_0[i]*uin_0[i]**2+Kxout_0[i]*uout_0[i]**2) for i in range(N-1)]        
+        dPout_0 = [(rho/2)*(b_x*ux_0[i]+fx_0[i]*(Lx/Dx)*ux_0[i]**2+Kxin_0[i]*uin_0[i]**2+Kxout_0[i]*uout_0[i]**2) for i in range(N-1)]        
         Pout_0 = [- sum(dPout_0[i:]) for i in range(N)]
 
     X0[:N]=Pin_0
@@ -212,25 +215,36 @@ def PL_fsolve(par,cond,q_init=[],print=False, fappx = 0.25):
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
 
+    ### Calcul des pertes de charges en fonction de la cause :
     Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(Xsol[2*N:3*N])
     
+    PRec = (rho/2)*(uin[N-1]**2-uout[ref]**2)*np.ones(N)
     PL_e = -(rho/2)*np.array([sum(K_se)*uin[N-1]**2 - sum([K_se[j]*uin[N-1]**2 for j in range(i+1,N)]) for i in range(N)])
-    PL_riser = (rho/2)*np.array([b_x*ux[i]+a_x*ux[i]**2 for i in range(N)])
-
+    PL_riser = (rho/2)*np.array([b_x*ux[i]+((fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx)*ux[i]**2 for i in range(N)])
     if ref==0:
-        PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(0,i-1)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
+        PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(0,i)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
         PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(1,i+1)]) for i in range(N)])
 
     else :
         PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(i+1,N)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
         PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(i+1,N)]) for i in range(N)])
     PL_tot = PL_e + PL_riser + PL_t + PL_man
-    PL_tot2 = np.array([(rho/2)*(sum(K_se)*uin[N-1]**2 + uin[N-1]**2 - uout[ref]**2) + Xsol[N-1]-Xsol[N+ref] for i in range(N)])
 
     df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
-    df_PL = pd.DataFrame((list(zip(PL_tot,PL_tot2, PL_e, PL_man, PL_riser, PL_t))), columns = ["Total PL", "Total PL en vrai", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee"])
+    df = df[::-1].reset_index(drop=True)
+
+    df_PL = pd.DataFrame((list(zip(PL_tot, PL_e, PL_man, PL_riser, PL_t, PRec))), columns = ["Total PL", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee", "Pressure recovery"])
+    df_PL = df_PL[::-1].reset_index(drop=True)
+
+    df_u = pd.DataFrame((list(zip(uin,ux,uout))), columns=['uin', 'ux', 'uout'])
+    df_u = df_u[::-1].reset_index(drop=True)
+    df_K = pd.DataFrame((list(zip(Kx_in, Ky_in, Kx_out, Ky_out))), columns=['Kx_in', 'Ky_in', 'Kx_out', 'Ky_out'])
+    df_K = df_K[::-1].reset_index(drop=True)
 
     if print == True:
         display(HTML(df.to_html()))  
 
-    return df,Xsol[N-1], df_PL
+    return df,Xsol[N-1], df_PL, df_u, df_K
+
+
+
