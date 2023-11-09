@@ -4,6 +4,7 @@ sys.path.append("../RD-systems-and-test-benches/utils")
 import data_processing as dp
 import hx_hydraulic as hxhy
 from CoolProp.CoolProp import PropsSI
+import model_fsolve as modf
 
 
 def initialize(path, file_name):
@@ -68,3 +69,18 @@ def create_excel(list_Vdot, list_PL, list_tabl, list_agdf, file_name):
 
     # Save the Excel file
     writer.close()
+
+def testing_series(file_name, list_QF, list_QF_out, list_alpha, par,cond):
+    df_QF = pd.DataFrame({'QF' : list_QF})
+    df_QF_out = pd.DataFrame({'QF_out' : list_QF_out})
+    df_alpha = pd.DataFrame({'alpha' : list_alpha})
+    df_cond_testings = df_QF.merge(df_QF_out, how = 'cross').merge(df_alpha, how='cross')
+    list_testings = []
+    for i in list(df_cond_testings.index):
+        tabl, PL, df_PL, testings = modf.PL_fsolve(par,cond, series=list(df_cond_testings.loc[i]))
+        list_testings.append(testings)
+
+    df_testings = pd.DataFrame(list_testings, columns=["Pin 1", "uin 1", "Pin2", "uin2", "Pout 1", "uout 1", "Pout 2", "uout 2"])
+    df_testings = df_cond_testings.join(df_testings)
+    df_testings.to_excel(file_name, index=False)
+    return(df_testings)

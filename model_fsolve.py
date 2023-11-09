@@ -94,7 +94,6 @@ def calc(q_vect, par, cond, DR=1, series = False):
     # Parameters
     N=par["N"]
     eps = cond["eps"]
-    QF = cond["Dv"]
 
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
     theta = par["theta"]
@@ -116,12 +115,14 @@ def calc(q_vect, par, cond, DR=1, series = False):
     b = 0
     d = 0
 
-    if series == False:
+    if not(series):
+        QF = cond["Dv"]
         QF_out = 0
         alpha = 1
     else :
-        QF_out = cond["Dv_out"]
-        alpha = cond["alpha"]
+        QF = series[0]
+        QF_out = series[1]
+        alpha = series[2]
 
     eta = cond["eta"] # dynamic viscosity
     ep = par["roughness"]
@@ -163,15 +164,16 @@ def initialize(q_init, par, cond, series = False):
     Dx = par["D_riser"]
     Din = par["D_man"]
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
-    QF = cond["Dv"]
     Ly_list = par["Ly"]
 
     if not(series):
+        QF = cond["Dv"]
         QF_out = 0
         alpha = 1
     else :
-        QF_out = cond["Dv_out"]
-        alpha = cond["alpha"]
+        QF = series[0]
+        QF_out = series[1]
+        alpha = series[2]
     rho = cond["rho"]
 
     X0 = np.zeros(3*N)
@@ -244,18 +246,21 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
 
     # Parameters
     N = par["N"]
-    QF = cond["Dv"]
     if not(series):
+        QF = cond["Dv"]
         QF_out = 0
         alpha = 1
     else :
-        QF_out = cond["Dv_out"]
-        alpha =cond["alpha"]
+        QF = series[0]
+        QF_out = series[1]
+        alpha = series[2]
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
 
     Dx = par["D_riser"]
     Din = par["D_man"]
     Dout = par["D_man"]
+    Ain = par["A_man"]
+    Aout = par["A_man"]
     Lx = par["L_riser"]
 
     Ly_list = par["Ly"] # N-1 values
@@ -279,7 +284,7 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
             if i>=1:
                 leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i-1]**2 + K_se[i] * uin[N-1]**2))
                 if ref == 0 :
-                    leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i]*uout[i-1]**2))
+                    leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i-1]*uout[i-1]**2))
                 else :
                     leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
                                 
@@ -300,10 +305,27 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
 
     X0 = initialize(q_init, par, cond, series)
 
-    t1 = t.time()
+    # t1 = t.time()
     Xsol = sc.fsolve(fun,X0)
-    t2 = t.time()
-    print(t2-t1)
+    # t2 = t.time()
+    # print(t2-t1)
+    
+    Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(Xsol[2*N:3*N], par, cond, DR, series)
+
+    if series != False:
+        uin_fin = QF*(1-alpha)/Ain
+        Pin_fin = Xsol[0] - (rho/2)*((uin_fin)**2 - uin[0]**2 + Ky_in[0]*(uin_fin)**2)
+        uout_in = QF_out/Ain
+        if ref==0:
+            Pout_in = Xsol[2*N-1] + (rho/2)*(uout[N-1]**2-uout_in**2 + Ky_out[N-1]*uout[N-1]**2)
+        else : 
+            Pout_in = Xsol[N] + (rho/2)*(uout[0]**2-uout_in**2 + Ky_out[0]*uout[0]**2)
+
+        Pinlet = Xsol[N-1]
+        Poutlet = 0
+        testings = [Xsol[N-1], uin[N-1], Pin_fin, uin_fin, Pout_in, uout_in, Xsol[N+ref], uout[ref]]
+    else :
+        testings = [Xsol[N-1], uin[N-1], Xsol[0], uin[0], Xsol[2*N-1-ref], uout[N-1-ref], Xsol[N+ref], uout[ref]]
 
     liste = [[Xsol[i],Xsol[N+i],Xsol[2*N+i]*3600000] for i in range(N)]
     df = pd.DataFrame(liste, columns = ['Pin','Pout','qx'])
@@ -319,7 +341,6 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
     if print == True:
         display(HTML(df.to_html()))  
 
-    return df,Xsol[N-1], df_PL
-
+    return df,Xsol[N-1], df_PL, testings
 
 
