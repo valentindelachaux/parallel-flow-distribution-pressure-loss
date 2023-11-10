@@ -100,7 +100,7 @@ def solve_plot(path, file_name, hist_pl = True, perc_pl = True, pl_dv = True, be
     
     hx, par, condi0 = fe.initialize(path, file_name)
 
-    tabl, res, PL = modf.PL_fsolve(par,condi0, show=False, series=series)
+    tabl, res, PL, testings = modf.PL_fsolve(par,condi0, show=False, series=series)
     if hist_pl :
         PL_hist(PL)
         plt.show()
@@ -119,3 +119,23 @@ def solve_plot(path, file_name, hist_pl = True, perc_pl = True, pl_dv = True, be
             plt.show()
 
     PL_ratio(par, condi0, list_Vdot, [0.25, 0.5, 1.], unit=None)
+
+### Abaque K 
+
+def K_abaque(df_testings, K_name):
+    unique_QF = df_testings['QF'].unique()
+    unique_QF_out = df_testings['QF_out'].unique()
+
+    fig, axes = plt.subplots(nrows=5, ncols=3, figsize=(15, 10))
+
+    for i, QF in enumerate(unique_QF):
+        for j, QF_out in enumerate(unique_QF_out):
+            filtered_data = df_testings[(df_testings['QF'] == QF) & (df_testings['QF_out'] == QF_out)]
+            ax = axes[i, j]
+            ax.plot(filtered_data['alpha'], filtered_data[K_name])
+            ax.set_title(f'Vdot: {QF*3600000:.0f} L/h, Vdot_out: {QF_out*3600000:.0f} L/h')
+            ax.set_xlabel('Alpha')
+            ax.set_ylabel(K_name)
+
+    plt.tight_layout()
+    plt.show()

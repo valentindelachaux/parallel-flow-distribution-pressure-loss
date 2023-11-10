@@ -41,7 +41,7 @@ def PL_fsolve_range(par,cond,list_Dv):
 
     for Dv in list_Dv:
         cond["Dv"] = Dv
-        tabl,res,PrL = PL_fsolve(par,cond)
+        tabl,res,PrL,testings = PL_fsolve(par,cond)
         list_PL.append(res)
         list_tabl.append(tabl)
 
@@ -333,12 +333,12 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
 
     df_PL = compute_PL(Xsol[2*N:3*N], par, cond, series, fappx)
 
-    # df_u = pd.DataFrame((list(zip(uin,ux,uout))), columns=['uin', 'ux', 'uout'])
-    # df_u = df_u[::-1].reset_index(drop=True)
-    # df_K = pd.DataFrame((list(zip(Kx_in, Ky_in, Kx_out, Ky_out))), columns=['Kx_in', 'Ky_in', 'Kx_out', 'Ky_out'])
-    # df_K = df_K[::-1].reset_index(drop=True)
+    df_u = pd.DataFrame((list(zip(uin,ux,uout))), columns=['uin', 'ux', 'uout'])
+    df_u = df_u[::-1].reset_index(drop=True)
+    df_K = pd.DataFrame((list(zip(Kx_in, Ky_in, Kx_out, Ky_out))), columns=['Kx_in', 'Ky_in', 'Kx_out', 'Ky_out'])
+    df_K = df_K[::-1].reset_index(drop=True)
 
-    if print == True:
+    if show == True:
         display(HTML(df.to_html()))  
 
     return df,Xsol[N-1], df_PL, testings

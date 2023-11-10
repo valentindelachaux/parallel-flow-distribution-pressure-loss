@@ -5,7 +5,7 @@ import data_processing as dp
 import hx_hydraulic as hxhy
 from CoolProp.CoolProp import PropsSI
 import model_fsolve as modf
-
+import fluids as fds
 
 def initialize(path, file_name):
     file_path = path+file_name
@@ -71,6 +71,15 @@ def create_excel(list_Vdot, list_PL, list_tabl, list_agdf, file_name):
     writer.close()
 
 def testing_series(file_name, list_QF, list_QF_out, list_alpha, par,cond):
+    rho = cond["rho"]
+    eta = cond["eta"]
+    ep = par["roughness"]
+    Din = par["D_man"]
+    Dout = par["D_man"]
+    Dx = par["D_riser"]
+    L_man = par["L_man"]
+    ref = par["ref"]
+
     df_QF = pd.DataFrame({'QF' : list_QF})
     df_QF_out = pd.DataFrame({'QF_out' : list_QF_out})
     df_alpha = pd.DataFrame({'alpha' : list_alpha})
@@ -80,7 +89,14 @@ def testing_series(file_name, list_QF, list_QF_out, list_alpha, par,cond):
         tabl, PL, df_PL, testings = modf.PL_fsolve(par,cond, series=list(df_cond_testings.loc[i]))
         list_testings.append(testings)
 
-    df_testings = pd.DataFrame(list_testings, columns=["Pin 1", "uin 1", "Pin2", "uin2", "Pout 1", "uout 1", "Pout 2", "uout 2"])
-    df_testings = df_cond_testings.join(df_testings)
+    df_testings = pd.DataFrame(list_testings, columns=["Pin 1", "uin 1", "Pin 2", "uin 2", "Pout 1", "uout 1", "Pout 2", "uout 2"])
+    df_testings["Rein"] = fds.core.Reynolds(df_testings["uin 1"],Din,rho,mu=eta)
+    df_testings["Reout"] = fds.core.Reynolds(df_testings["uout 1"],Dout,rho,mu=eta)
+    df_testings["fin"] = [fds.friction.friction_factor(Re = df_testings.loc[i]["Rein"],eD = ep/Din) for i in range(len(df_testings))]
+    df_testings["fout"] = [fds.friction.friction_factor(Re = df_testings.loc[i]["Reout"],eD = ep/Dout) for i in range(len(df_testings))] 
+    df_testings["Kyin"] = ((2/rho)*(df_testings["Pin 1"] - df_testings["Pin 2"]) + df_testings["uin 1"]**2 - df_testings["uin 2"]**2 - df_testings["fin"]*L_man*df_testings["uin 2"]**2/Din)/df_testings['uin 1']**2
+    df_testings["Kyout"] = ((2/rho)*(df_testings["Pout 1"] - df_testings["Pout 2"]) + df_testings["uout 1"]**2 - df_testings["uout 2"]**2 - df_testings["fout"]*L_man*df_testings["uout 2"]**2/Din)/df_testings['uout 1']**2
+
+    df_testings = df_cond_testings.join(df_testings[["Kyin","Kyout"]])
     df_testings.to_excel(file_name, index=False)
     return(df_testings)
