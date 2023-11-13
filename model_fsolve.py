@@ -12,25 +12,25 @@ import time as t
 
 def Kxin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"): #Din, Dx, theta in par
     if method == 'Crane':
-        return (coeff+a*Q_run+b*Q_branch + d*Q_branch**2)*fds.fittings.K_branch_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (0*coeff+a*Q_run+b*Q_branch + d*Q_branch**2)*fds.fittings.K_branch_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kxin'][i]
 
 def Kyin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"):
     if method == 'Crane':
-        return (coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (0*coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kyin'][i]
 
 def Kxout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"):
     if method == 'Crane':
-        return (coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_branch_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (0*coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_branch_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kxout'][i]
 
 def Kyout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"):
     if method == 'Crane':
-        return (coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (0*coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kyout'][i]
 
