@@ -5,43 +5,43 @@ from IPython.core.display import HTML
 from IPython.display import display
 import fluids as fds
 import scipy.optimize as sc
-import time as t
+import ml_models as ml
 
 
 # sch = exchanger or system
 
 def Kxin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"): #Din, Dx, theta in par
     if method == 'Crane':
-        return (0*coeff+a*Q_run+b*Q_branch + d*Q_branch**2)*fds.fittings.K_branch_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (coeff+a*Q_run+b*Q_branch + d*Q_branch**2)*fds.fittings.K_branch_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kxin'][i]
 
 def Kyin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"):
     if method == 'Crane':
-        return (0*coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kyin'][i]
 
 def Kxout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"):
     if method == 'Crane':
-        return (0*coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_branch_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_branch_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kxout'][i]
 
 def Kyout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,a=0,b=0,d=0,method="Crane"):
     if method == 'Crane':
-        return (0*coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+        return (coeff+a*Q_run+b*Q_branch+ d*Q_branch**2)*fds.fittings.K_run_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
     elif method == "input":
         return method['Kyout'][i]
 
 
-def PL_fsolve_range(par,cond,list_Dv):
+def PL_fsolve_range(par,cond,list_Dv, fappx):
     list_PL = []
     list_tabl = []
 
     for Dv in list_Dv:
         cond["Dv"] = Dv
-        tabl,res,PrL,testings = PL_fsolve(par,cond)
+        tabl,res,PrL,testings = PL_fsolve(par,cond, fappx = fappx)
         list_PL.append(res)
         list_tabl.append(tabl)
 
@@ -52,7 +52,7 @@ def change_diameter(par, D, name='man'):
     par['D_'+ name] = D
     par['A_' + name] *= (D/former)**2
 
-def PL_fsolve_range_rd(par,cond,list_rd):
+def PL_fsolve_range_rd(par,cond,list_rd,fappx=0.25):
     list_PL = []
     list_tabl = []
     D0_riser = par['D_riser']
@@ -61,7 +61,7 @@ def PL_fsolve_range_rd(par,cond,list_rd):
     for rd in list_rd:
         change_diameter(par, D0_man*np.sqrt(r0/rd), name='man')
         change_diameter(par, D0_riser*np.sqrt(rd/r0), name='riser')
-        tabl, res, PL, u, K = PL_fsolve(par,cond,show=False)
+        tabl, res, PL, testings = PL_fsolve(par,cond,show=False, fappx=fappx)
         list_PL.append(res)
         list_tabl.append(tabl)
     return np.array(list_PL),list_tabl
@@ -140,7 +140,8 @@ def calc(q_vect, par, cond, DR=1, series = False):
     uout = Qout/Aout
     Rein = fds.core.Reynolds(uin,Din,rho,mu=eta)
     Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
-    Lex = 0.05*np.sqrt(4*Ax/np.pi)*Rex
+    # Lex = 0.05*np.sqrt(4*Ax/np.pi)*Rex
+    Lex = [Lx for i in range(N)]
     Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
     fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)] # fonction non vectorisée
     fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)]
@@ -242,7 +243,7 @@ def compute_PL(q_sol, par, cond, series = False, fappx = 0.25):
 
     return df_PL    
 
-def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=False):
+def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=False, simplified = False):
 
     # Parameters
     N = par["N"]
@@ -279,24 +280,41 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
         leq = []
         Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(x[2*N:3*N], par, cond, DR, series)
 
-        
-        for i in range(N):
-            if i>=1:
-                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i-1]**2 + K_se[i] * uin[N-1]**2))
-                if ref == 0 :
-                    leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i-1]*uout[i-1]**2))
-                else :
-                    leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
-                                
-            if par["sch"] == "exchanger":
-                b_x = 0. # linear part
-                a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
-                        
-            elif par["sch"] == "system":
-                a_x = par["a_x"]
-                b_x = par["b_x"]
-            leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
+        if not(simplified) :
+            for i in range(N):
+                if i>=1:
+                    leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i-1]**2 + K_se[i] * uin[N-1]**2))
+                    if ref == 0 :
+                        leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i-1]*uout[i-1]**2))
+                    else :
+                        leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
+                                    
+                if par["sch"] == "exchanger":
+                    b_x = 0. # linear part
+                    a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
+                            
+                elif par["sch"] == "system":
+                    a_x = par["a_x"]
+                    b_x = par["b_x"]
+                leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
+        else :
+            for i in range(N):
+                if i>=1:
+                    leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2+ float(ml.model_in.predict([[Qin[i], Qout[i-1], x[2*N+i]/Qin[i]]])) + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + K_se[i] * uin[N-1]**2))
 
+                    if ref == 0 :
+                        leq.append(x[N+i] - x[N+i-1] - float(ml.model_out.predict([[Qin[i], Qout[i-1], x[2*N+i]/Qin[i]]])) - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout))
+                    else :
+                        leq.append(x[N+i-1] - x[N+i] - float(ml.model_out.predict([[Qin[i], Qout[i-1], x[2*N+i]/Qin[i]]]))- (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout)) 
+                                    
+                if par["sch"] == "exchanger":
+                    b_x = 0. # linear part
+                    a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
+                            
+                elif par["sch"] == "system":
+                    a_x = par["a_x"]
+                    b_x = par["b_x"]
+                leq.append(x[i] - x[N+i] - float(ml.model_x.predict([[Qin[i], Qout[i-1], x[2*N+i]/Qin[i]]])) - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2))  
         leq.append(sum([x[j] for j in range(2*N,3*N)]) - QF*alpha)
         leq.append(x[N+ref] - 0)
         return(leq)
@@ -340,7 +358,6 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
 
     if show == True:
         display(HTML(df.to_html()))  
-
     return df,Xsol[N-1], df_PL, testings
 
 
