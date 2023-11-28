@@ -12,6 +12,9 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from CoolProp.CoolProp import PropsSI
 import fluids as fds
 
+import sys
+sys.path.append('../RD-systems-and-test-benches/utils')
+
 import data_processing as dp
 
 class hx_harp:
