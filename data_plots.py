@@ -11,7 +11,7 @@ def PL_percent(PL):
     PL_per.plot(y= ["SPL entrance", "RPL manifold", "RPL riser", "SPL tee"], xlabel='N° riser', ylabel='% head loss contribution')
 
 def PL_hist(PL):
-    PL.plot.bar(y=['SPL entrance', 'RPL manifold', 'RPL riser', 'SPL tee', 'Pressure recovery'], stacked = True, xlabel='N° riser', ylabel='Pressure loss [Pa]', xticks= np.linspace(0, len(PL), 20))
+    PL.plot.bar(y=['SPL entrance', 'RPL manifold', 'RPL riser', 'SPL tee', 'Pressure recovery'], stacked = True, xlabel='N° riser', ylabel='Pressure loss [Pa]', xticks= np.arange(0, len(PL), 10))
 
 def PL_dv(list_Vdot, list_PL, lab=None, unit = None):
     if unit == 'L/min':
@@ -24,6 +24,18 @@ def PL_dv(list_Vdot, list_PL, lab=None, unit = None):
     plt.legend()
 
 def PL_ratio(par, cond, list_Vdot, list_rd, unit=None):
+    """Plot the pressure losses for different riser diameters
+    
+    Args:
+        par (dict): parameters
+        cond (dict): conditions
+        list_Vdot (list): list of flow rates
+        list_rd (list): list of riser diameters
+        unit (str, optional): unit of the flow rate. Defaults to None.
+    
+    Returns:
+        None"""
+    
     D0_riser = par['D_riser']
     D0_man = par['D_man']
     r0 = D0_riser/D0_man
@@ -35,25 +47,30 @@ def PL_ratio(par, cond, list_Vdot, list_rd, unit=None):
 
 ### Flow distribution plots
 
-def beta_riser(tabl, axis=None, lab=None, dimensionless=True, rho=None):
+def beta_riser(tabl, axis=None, lab=None, zero=False):
+    """Plot the flow distribution in risers
+    
+    Args:
+        tabl (DataFrame): table of results
+        axis (list, optional): axis of the plot. Defaults to None. 
+        lab (str, optional): label of the plot. Defaults to None.
+        zero (bool, optional): if True, the plot starts at 0. Defaults to False.
+        
+    Returns:
+        None"""
+    
     list_qx = tabl['qx'][:]
     N = len(list_qx)
     list_qx.reset_index(drop=True,inplace=True)
-    if dimensionless:
-        list_beta = list_qx/list_qx.mean()
-        plt.plot([i for i in range(N)], list_beta, label=lab)
-        plt.axis(axis)
-        plt.ylim(ymin=0,ymax=max(list_beta)+0.2)
-        plt.xlabel('N° riser')
-        plt.ylabel('q_x / q_moy')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2),ncol=2)
-    else :
-        plt.plot([i for i in range(N)], list_qx*rho/3600000, label=lab)
-        plt.axis(axis)
-        plt.ylim(ymin=0)
-        plt.xlabel('N° riser')
-        plt.ylabel('Mass flow rate [kg/s]')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2),ncol=2)    
+    list_beta = list_qx/list_qx.mean()
+    plt.plot([i for i in range(N)], list_beta, label=lab)
+    plt.axis(axis)
+    if zero :
+        plt.ylim(ymin=min([0,min(list_beta)-0.2]),ymax=max(list_beta)+0.2)
+    plt.xlabel('N° riser')
+    plt.ylabel('q_x / q_moy')
+    plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2),ncol=2)
+
 
 def beta_rd(list_rd, list_tabl):
     for i in range(len(list_tabl)):
@@ -101,6 +118,8 @@ def solve_plot(path, file_name, hist_pl = True, perc_pl = True, pl_dv = True, be
     hx, par, condi0 = fe.initialize(path, file_name)
 
     tabl, res, PL, testings = modf.PL_fsolve(par,condi0, show=False, series=series)
+    beta_riser(tabl)
+
     if hist_pl :
         PL_hist(PL)
         plt.show()
@@ -109,7 +128,7 @@ def solve_plot(path, file_name, hist_pl = True, perc_pl = True, pl_dv = True, be
         plt.show()
 
     if pl_dv or beta_dv :
-        list_PL, list_tabl= modf.PL_fsolve_range(par, condi0, np.array(list_Vdot)/3600000)     
+        list_PL, list_tabl= modf.PL_fsolve_range(par, condi0, np.array(list_Vdot)/3600000, 0.25)     
 
         if pl_dv :
             PL_dv(list_Vdot, list_PL)
@@ -118,7 +137,6 @@ def solve_plot(path, file_name, hist_pl = True, perc_pl = True, pl_dv = True, be
             beta_vdot(list_Vdot, list_tabl)
             plt.show()
 
-    PL_ratio(par, condi0, list_Vdot, [0.25, 0.5, 1.], unit=None)
 
 ### Abaque K 
 
@@ -126,13 +144,23 @@ def K_abaque(df_testings, K_name):
     unique_QF = df_testings['QF'].unique()
     unique_QF_out = df_testings['QF_out'].unique()
 
-    fig, axes = plt.subplots(nrows=5, ncols=3, figsize=(15, 10))
+    fig, axes = plt.subplots(nrows=len(unique_QF), ncols=len(unique_QF_out), figsize=(15, 10))
+    K_max = df_testings[K_name].max()
+    K_min = df_testings[K_name].min()
 
     for i, QF in enumerate(unique_QF):
         for j, QF_out in enumerate(unique_QF_out):
             filtered_data = df_testings[(df_testings['QF'] == QF) & (df_testings['QF_out'] == QF_out)]
             ax = axes[i, j]
-            ax.plot(filtered_data['alpha'], filtered_data[K_name])
+            ax.plot(filtered_data['alpha'], filtered_data[K_name], label = 'Original model')
+            ax.plot(filtered_data['alpha'], filtered_data[K_name+'_test'], label = 'Least squares model')
+            # if K_max*K_min < 0 :
+            #     ax.set(ylim=(K_min, K_max))
+            # elif K_min <=0 :
+            #     ax.set(ylim=(K_min, 0))
+            # else :
+            #     ax.set(ylim=(0, K_max))
+            ax.legend()
             ax.set_title(f'Vdot: {QF*3600000:.0f} L/h, Vdot_out: {QF_out*3600000:.0f} L/h')
             ax.set_xlabel('Alpha')
             ax.set_ylabel(K_name)
