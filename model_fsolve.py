@@ -24,31 +24,42 @@ model_out.fit(X, yout)
 model_x = RandomForestRegressor() 
 model_x.fit(X, yx)
 
-
-
 def Kxin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"): 
-    if method == 'Crane':
-        return coeff*fds.fittings.K_branch_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
-    elif method == "input":
-        return method['Kxin'][i]
+    return 1
 
 def Kyin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
-    if method == 'Crane':
-        return coeff*fds.fittings.K_run_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
-    elif method == "input":
-        return method['Kyin'][i]
+    return 1
 
 def Kxout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
-    if method == 'Crane':
-        return coeff*fds.fittings.K_branch_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
-    elif method == "input":
-        return method['Kxout'][i]
+    return 1
 
 def Kyout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
-    if method == 'Crane':
-        return coeff*fds.fittings.K_run_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
-    elif method == "input":
-        return method['Kyout'][i]
+    return 1
+
+
+# def Kxin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"): 
+#     if method == 'Crane':
+#         return coeff*fds.fittings.K_branch_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+#     elif method == "input":
+#         return method['Kxin'][i]
+
+# def Kyin(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
+#     if method == 'Crane':
+#         return coeff*fds.fittings.K_run_diverging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+#     elif method == "input":
+#         return method['Kyin'][i]
+
+# def Kxout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
+#     if method == 'Crane':
+#         return coeff*fds.fittings.K_branch_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+#     elif method == "input":
+#         return method['Kxout'][i]
+
+# def Kyout(D_run,D_branch,theta,Q_run,Q_branch,i,coeff,method="Crane"):
+#     if method == 'Crane':
+#         return coeff*fds.fittings.K_run_converging_Crane(D_run=D_run, D_branch=D_branch, Q_run=Q_run, Q_branch=Q_branch, angle=theta)
+#     elif method == "input":
+#         return method['Kyout'][i]
 
 
 def PL_fsolve_range(par,cond,list_Dv, fappx=0.25):
@@ -83,7 +94,7 @@ def PL_fsolve_range_rd(par,cond,list_rd,fappx=0.25):
     return np.array(list_PL),list_tabl
 
 
-def calc(q_vect, par, cond, DR=1, series = False, simplified= False):
+def calc(q_vect, par, cond, DR=1, series = None, simplified= False):
     """
     Args : 
         q_vect : list, débit volumique dans les canaux [m3/s]
@@ -127,7 +138,7 @@ def calc(q_vect, par, cond, DR=1, series = False, simplified= False):
     c_Kyin = par["coeff_Kyin"]
     c_Kyout = par["coeff_Kyout"]
 
-    if not(series):
+    if series == None:
         QF = cond["Dv"]
         QF_out = 0
         alpha = 1
@@ -155,17 +166,18 @@ def calc(q_vect, par, cond, DR=1, series = False, simplified= False):
     Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
     Lex = 0.05*np.sqrt(4*Ax/np.pi)*Rex
     Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
-    fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)]
-    fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)]
-    fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/Dout) for i in range(N)]
-    Kx_in = [Kxin(Din,Dx,theta,Qin[i],q_vect[i],i,c_Kxin) for i in range(N)]
-    if not(series):
-        Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
+    fin = np.array([fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)])
+    fx = np.array([fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)])
+    fout = np.array([fds.friction.friction_factor(Re = Reout[i],eD=ep/Dout) for i in range(N)])
+    Kx_in = np.array([Kxin(Din,Dx,theta,Qin[i],q_vect[i],i,c_Kxin) for i in range(N)])
+    if series == None:
+        Ky_in = np.array([0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)])
     else :
-        Ky_in = [Kyin(Din,Dx,theta,QF*(1-alpha),q_vect[0],0,c_Kyin)]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)]
-    Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)]
-    Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)]           
-    Kse = fds.fittings.contraction_sharp(DR*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) 
+        Ky_in = np.array([Kyin(Din,Dx,theta,QF*(1-alpha),q_vect[0],0,c_Kyin)]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin) for i in range(1,N)])
+    Kx_out = np.array([Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout) for i in range(N)])
+    Ky_out = np.array([Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout) for i in range(N)])
+    # Kse = fds.fittings.contraction_sharp(DR*Din, Din, fd=fin[N-1], Re=Rein[N-1], roughness=ep) 
+    Kse = 1
     K_se = Kse*np.array([0.05, 0.1, 0.25, 0.6])
     K_se = np.concatenate((np.zeros(N-len(K_se)), K_se))
 
@@ -173,11 +185,14 @@ def calc(q_vect, par, cond, DR=1, series = False, simplified= False):
         DPin = [float(model_in.predict([[Qin[i], Qout[i+1], q_vect[i]/Qin[i]]])) for i in range(N-1)]+[float(model_in.predict([[Qin[N-1], 0, q_vect[N-1]/Qin[N-1]]]))]
         DPout = [float(model_out.predict([[Qin[i], Qout[i+1], q_vect[i]/Qin[i]]])) for i in range(N-1)]+[float(model_out.predict([[Qin[N-1], 0, q_vect[N-1]/Qin[N-1]]]))]
         DPx = [float(model_x.predict([[Qin[i], Qout[i+1], q_vect[i]/Qin[i]]])) for i in range(N-1)] + [float(model_x.predict([[Qin[N-1], 0, q_vect[N-1]/Qin[N-1]]]))] 
-        return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex, DPin, DPout, DPx
-    
-    return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex
 
-def initialize(q_init, par, cond, series = False):
+        var_dict = {'Qin':Qin,'Qout':Qout,'uin':uin,'ux':ux,'uout':uout,'Rein':Rein,'Rex':Rex,'Reout':Reout,'fin':fin,'fx':fx,'fout':fout,'Kx_in':Kx_in,'Ky_in':Ky_in,'Kx_out':Kx_out,'Ky_out':Ky_out,'K_se':K_se,'Lex':Lex, 'DPin':DPin, 'DPout':DPout, 'DPx':DPx}
+    else: 
+        var_dict = {'Qin':Qin,'Qout':Qout,'uin':uin,'ux':ux,'uout':uout,'Rein':Rein,'Rex':Rex,'Reout':Reout,'fin':fin,'fx':fx,'fout':fout,'Kx_in':Kx_in,'Ky_in':Ky_in,'Kx_out':Kx_out,'Ky_out':Ky_out,'K_se':K_se,'Lex':Lex}
+
+    return var_dict
+
+def initialize(q_init, par, cond, series = None):
     N = par["N"]
     Lx = par["L_riser"]
     Dx = par["D_riser"]
@@ -185,7 +200,7 @@ def initialize(q_init, par, cond, series = False):
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
     Ly_list = par["Ly"]
 
-    if not(series):
+    if series==None:
         QF = cond["Dv"]
         QF_out = 0
         alpha = 1
@@ -204,7 +219,8 @@ def initialize(q_init, par, cond, series = False):
         for i in range(N):
             X0[2*N+i] = q_init[i]
 
-    Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0, Kse_0, Lex_0 = calc(X0[2*N:], par, cond, series=series) 
+    var_dict0 = calc(X0[2*N:], par, cond, series=series)
+    Qin_0 = var_dict0['Qin']; Qout_0 = var_dict0['Qout']; uin_0 = var_dict0['uin']; ux_0 = var_dict0['ux']; uout_0 = var_dict0['uout']; Rein_0 = var_dict0['Rein']; Rex_0 = var_dict0['Rex']; Reout_0 = var_dict0['Reout']; fin_0 = var_dict0['fin']; fx_0 = var_dict0['fx']; fout_0 = var_dict0['fout']; Kxin_0 = var_dict0['Kx_in']; Kyin_0 = var_dict0['Ky_in']; Kxout_0 = var_dict0['Kx_out']; Kyout_0 = var_dict0['Ky_out']; Kse_0 = var_dict0['K_se']; Lex_0 = var_dict0['Lex']
     
     if par["sch"] == "exchanger":
             b_x = 0. # linear part
@@ -248,7 +264,8 @@ def compute_PL(q_sol, par, cond, series = False, simplified = False, fappx = 0.2
     elif par["sch"] == "system":
         b_x = par["b_x"]    
 
-    Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(q_sol, par, cond, series=series)
+    var_dict = calc(q_sol, par, cond, series=series)
+    Qin = var_dict['Qin']; Qout = var_dict['Qout']; uin = var_dict['uin']; ux = var_dict['ux']; uout = var_dict['uout']; Rein = var_dict['Rein']; Rex = var_dict['Rex']; Reout = var_dict['Reout']; fin = var_dict['fin']; fx = var_dict['fx']; fout = var_dict['fout']; Kx_in = var_dict['Kx_in']; Ky_in = var_dict['Ky_in']; Kx_out = var_dict['Kx_out']; Ky_out = var_dict['Ky_out']; K_se = var_dict['K_se']; Lex = var_dict['Lex']
 
     PRec = (rho/2)*(uin[N-1]**2-uout[ref]**2)*np.ones(N)
     PL_e = -(rho/2)*np.array([sum(K_se)*uin[N-1]**2 - sum([K_se[j]*uin[N-1]**2 for j in range(i+1,N)]) for i in range(N)])
@@ -263,7 +280,8 @@ def compute_PL(q_sol, par, cond, series = False, simplified = False, fappx = 0.2
             PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(i+1,N)]) for i in range(N)])
     
     else : 
-        Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex, DPin, DPout, DPx = calc(q_sol, par, cond, series=series, simplified=simplified)
+        var_dict = calc(q_sol, par, cond, series=series, simplified=simplified)
+        Qin = var_dict['Qin']; Qout = var_dict['Qout']; uin = var_dict['uin']; ux = var_dict['ux']; uout = var_dict['uout']; Rein = var_dict['Rein']; Rex = var_dict['Rex']; Reout = var_dict['Reout']; fin = var_dict['fin']; fx = var_dict['fx']; fout = var_dict['fout']; Kx_in = var_dict['Kx_in']; Ky_in = var_dict['Ky_in']; Kx_out = var_dict['Kx_out']; Ky_out = var_dict['Ky_out']; K_se = var_dict['K_se']; Lex = var_dict['Lex']; DPin = var_dict['DPin']; DPout = var_dict['DPout']; DPx = var_dict['DPx']
 
         if ref==0:
             PL_t = np.array([sum([DPin[j] for j in range(i+1,N)]) + sum([DPout[j] for j in range(0,i)]) + DPx[i] for i in range(N)])
@@ -278,13 +296,85 @@ def compute_PL(q_sol, par, cond, series = False, simplified = False, fappx = 0.2
     df_PL = pd.DataFrame((list(zip(PL_tot, PL_e, PL_man, PL_riser, PL_t, PRec))), columns = ["Total PL", "SPL entrance", "RPL manifold", "RPL riser", "SPL tee", "Pressure recovery"])
     df_PL = df_PL[::-1].reset_index(drop=True)
 
-    return df_PL    
+    return df_PL
 
-def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=False, simplified = False):
+def fun(x, par, cond, series = None, simplified = False):
+
+    # Parameters
+    N = par["N"];Dx = par["D_riser"];Din = par["D_man"];Dout = par["D_man"];Ain = par["A_man"];Aout = par["A_man"];Lx = par["L_riser"];Ly_list = par["Ly"];ref = par["ref"] # 0 (en Z) ou N-1 (en U)
+    DR = par['DR']
+    fappx = par['fappx']
+
+    rho = cond["rho"]
+
+    if series==None:
+        QF = cond["Dv"]
+        QF_out = 0
+        alpha = 1
+    else :
+        QF = series[0]
+        QF_out = series[1]
+        alpha = series[2]    
+
+    """
+    Args : 
+        x : list, system state in the format [Pin_0, ..., Pin_N-1, Pout_0, ..., Pout_N-1, q_0, ..., q_N-1]
+        
+    Returns : 
+        leq : list, system of equations to which x is subjected
+    """ 
+    leq = []
+
+    if not(simplified) :
+        var_dict = calc(x[2*N:3*N], par, cond, DR, series)
+        Qin = var_dict['Qin']; Qout = var_dict['Qout']; uin = var_dict['uin']; ux = var_dict['ux']; uout = var_dict['uout']; Rein = var_dict['Rein']; Rex = var_dict['Rex']; Reout = var_dict['Reout']; fin = var_dict['fin']; fx = var_dict['fx']; fout = var_dict['fout']; Kx_in = var_dict['Kx_in']; Ky_in = var_dict['Ky_in']; Kx_out = var_dict['Kx_out']; Ky_out = var_dict['Ky_out']; K_se = var_dict['K_se']; Lex = var_dict['Lex']
+
+        for i in range(N):
+            if i>=1:
+                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i-1]**2 + K_se[i] * uin[N-1]**2))
+                if ref == 0 :
+                    leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i-1]*uout[i-1]**2))
+                else :
+                    leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
+                                
+            if par["sch"] == "exchanger":
+                b_x = 0. # linear part
+                a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
+                        
+            elif par["sch"] == "system":
+                a_x = par["a_x"]
+                b_x = par["b_x"]
+            leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
+    else :
+        var_dict = calc(x[2*N:3*N], par, cond, DR, series, simplified=simplified)
+        Qin = var_dict['Qin']; Qout = var_dict['Qout']; uin = var_dict['uin']; ux = var_dict['ux']; uout = var_dict['uout']; Rein = var_dict['Rein']; Rex = var_dict['Rex']; Reout = var_dict['Reout']; fin = var_dict['fin']; fx = var_dict['fx']; fout = var_dict['fout']; Kx_in = var_dict['Kx_in']; Ky_in = var_dict['Ky_in']; Kx_out = var_dict['Kx_out']; Ky_out = var_dict['Ky_out']; K_se = var_dict['K_se']; Lex = var_dict['Lex']; DPin = var_dict['DPin']; DPout = var_dict['DPout']; DPx = var_dict['DPx']
+
+        for i in range(N):
+            if i>=1:
+                leq.append(x[i] - x[i-1] - DPin[i]- (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + K_se[i] * uin[N-1]**2))
+
+                if ref == 0 :
+                    leq.append(x[N+i] - x[N+i-1] - DPout[i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout))
+                else :
+                    leq.append(x[N+i-1] - x[N+i] - DPout[i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout)) 
+                                
+            if par["sch"] == "exchanger":
+                b_x = 0. # linear part
+                a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
+                        
+            elif par["sch"] == "system":
+                a_x = par["a_x"]
+                b_x = par["b_x"]
+            leq.append(x[i] - x[N+i] - DPx[i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2))  
+    leq.append(sum([x[j] for j in range(2*N,3*N)]) - QF*alpha)
+    leq.append(x[N+ref] - 0)
+    return(leq)    
+
+def PL_fsolve(par,cond, q_init=[],show=False, series=None, simplified = False):
 
     # Parameters
     N = par["N"]
-    if not(series):
+    if series==None:
         QF = cond["Dv"]
         QF_out = 0
         alpha = 1
@@ -301,72 +391,24 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
     Aout = par["A_man"]
     Lx = par["L_riser"]
 
+    DR = par['DR']
+    fappx = par['fappx']
+
     Ly_list = par["Ly"] # N-1 values
     rho = cond["rho"]
 
     # Fonction = système de 3N équations    
 
-    def fun(x):
-        """
-        Args : 
-            x : list, system state in the format [Pin_0, ..., Pin_N-1, Pout_0, ..., Pout_N-1, q_0, ..., q_N-1]
-            
-        Returns : 
-            leq : list, system of equations to which x is subjected
-        """ 
-        leq = []
-
-        if not(simplified) :
-            Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(x[2*N:3*N], par, cond, DR, series)
-
-            for i in range(N):
-                if i>=1:
-                    leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i-1]**2 + K_se[i] * uin[N-1]**2))
-                    if ref == 0 :
-                        leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i-1]*uout[i-1]**2))
-                    else :
-                        leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
-                                    
-                if par["sch"] == "exchanger":
-                    b_x = 0. # linear part
-                    a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
-                            
-                elif par["sch"] == "system":
-                    a_x = par["a_x"]
-                    b_x = par["b_x"]
-                leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
-        else :
-            Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex, DPin, DPout, DPx = calc(x[2*N:3*N], par, cond, DR, series, simplified=simplified)
-            for i in range(N):
-                if i>=1:
-                    leq.append(x[i] - x[i-1] - DPin[i]- (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + K_se[i] * uin[N-1]**2))
-
-                    if ref == 0 :
-                        leq.append(x[N+i] - x[N+i-1] - DPout[i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout))
-                    else :
-                        leq.append(x[N+i-1] - x[N+i] - DPout[i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout)) 
-                                    
-                if par["sch"] == "exchanger":
-                    b_x = 0. # linear part
-                    a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
-                            
-                elif par["sch"] == "system":
-                    a_x = par["a_x"]
-                    b_x = par["b_x"]
-                leq.append(x[i] - x[N+i] - DPx[i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2))  
-        leq.append(sum([x[j] for j in range(2*N,3*N)]) - QF*alpha)
-        leq.append(x[N+ref] - 0)
-        return(leq)
-
     # Initialisation
 
     X0 = initialize(q_init, par, cond, series)
 
-    Xsol = sc.fsolve(fun,X0)
+    Xsol = sc.fsolve(lambda x: fun(x,par,cond),X0)
 
-    Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, K_se, Lex = calc(Xsol[2*N:3*N], par, cond, DR, series)
+    var_dict = calc(Xsol[2*N:3*N], par, cond, DR, series)
+    Qin = var_dict['Qin']; Qout = var_dict['Qout']; uin = var_dict['uin']; ux = var_dict['ux']; uout = var_dict['uout']; Rein = var_dict['Rein']; Rex = var_dict['Rex']; Reout = var_dict['Reout']; fin = var_dict['fin']; fx = var_dict['fx']; fout = var_dict['fout']; Kx_in = var_dict['Kx_in']; Ky_in = var_dict['Ky_in']; Kx_out = var_dict['Kx_out']; Ky_out = var_dict['Ky_out']; K_se = var_dict['K_se']; Lex = var_dict['Lex']
 
-    if series != False:
+    if series != None:
         uin_fin = QF*(1-alpha)/Ain
         Pin_fin = Xsol[0] - (rho/2)*((uin_fin)**2 - uin[0]**2 + Ky_in[0]*(uin_fin)**2)
         uout_in = QF_out/Ain
@@ -394,6 +436,6 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
 
     if show == True:
         display(HTML(df.to_html()))  
-    return df,Xsol[N-1], df_PL, testings
+    return Xsol,df,Xsol[N-1], df_PL, testings
 
 

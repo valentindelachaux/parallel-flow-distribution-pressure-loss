@@ -73,6 +73,9 @@ class hx_harp:
 
         self.method = par["method"]
     
+        self.DR = par["DR"]
+        self.fappx = par["fappx"]
+
         self.theta = par["theta"]
         self.roughness = par["roughness"]
 
