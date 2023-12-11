@@ -107,5 +107,5 @@ def testing_series(file_name, list_QF, list_QF_out, list_alpha, par,cond):
     df_testings["DPx"] = df_testings["Pin 1"]- df_testings["Pout 2"] + (rho/2)*(df_testings["uin 1"]**2 - df_testings["uout 2"]**2 - df_testings["fx"]*L_riser*df_testings["ux"]**2/Dx)
 
     df_testings = df_cond_testings.join(df_testings[["DPin","DPout","DPx"]])
-    df_testings.to_excel(file_name, index=False)
+    df_testings.to_excel(file_name[:-5]+"_test.xlsx", index=False)
     return(df_testings)

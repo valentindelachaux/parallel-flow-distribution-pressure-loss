@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 
 ### A partir d'un fichier généré sur 1 MPE, on génère 3 modèles de pertes de charges pour un MPE : PL = f(Qin1, Qout1, alpha)
-df_testings = pd.read_excel("G:\Drive partagés\BU04-Innovation\PVT-PL-model\Outputs\Tests-model-simplification\V4.5_1MPE_testings.xlsx")
+df_testings = pd.read_excel("G:\Drive partagés\BU04-Innovation\PVT-PL-model\Outputs\Tests-model-simplification\MICOE_risers_x6_testings.xlsx")
 X = df_testings[['QF', 'QF_out', 'alpha']].to_numpy()
 yin = df_testings['DPin'].to_numpy()
 yout = df_testings['DPout'].to_numpy()
@@ -392,8 +392,11 @@ def PL_fsolve(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1., series=Fals
     df_K = pd.DataFrame((list(zip(Kx_in, Ky_in, Kx_out, Ky_out))), columns=['Kx_in', 'Ky_in', 'Kx_out', 'Ky_out'])
     df_K = df_K[::-1].reset_index(drop=True)
 
+    df_Re = pd.DataFrame((list(zip(Rein, Rex, Reout))), columns=['Rein', 'Rex', 'Reout'])
+    df_Re = df_Re[::-1].reset_index(drop=True)
+
     if show == True:
         display(HTML(df.to_html()))  
-    return df,Xsol[N-1], df_PL, testings
+    return df,Xsol[N-1- ref], df_PL, testings
 
 
