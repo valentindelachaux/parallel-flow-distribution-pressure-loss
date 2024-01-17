@@ -16,6 +16,7 @@ import sys
 sys.path.append('../RD-systems-and-test-benches/utils')
 
 import data_processing as dp
+import conversion as conv
 
 class hx_harp:
 
@@ -175,8 +176,8 @@ class duct:
         Dv = Vdot/(3.6*1E6)
         V = Dv/self.A
 
-        p = dp.check_unit_p(p)
-        T = dp.check_unit_T(T)
+        p = conv.check_unit_p(p)
+        T = conv.check_unit_T(T)
 
         rho = PropsSI('D', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
         eta = PropsSI('V', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
