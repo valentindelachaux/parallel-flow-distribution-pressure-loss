@@ -583,4 +583,4 @@ def PL_fsolve_simplified(par,cond, q_init=[],show=False, fappx = 0.25, DR = 1.):
 
     if show == True:
         display(HTML(df.to_html()))  
-    return df,Xsol[N-1- ref], df_PL , testings
+    return df, Xsol[N-1- ref], df_PL , testings
