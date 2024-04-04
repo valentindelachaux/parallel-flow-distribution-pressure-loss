@@ -1,12 +1,11 @@
 import sys
-import pandas as pd
-import numpy as np
 sys.path.append("../RD-systems-and-test-benches/utils")
+import pandas as pd
 import data_processing as dp
 import hx_hydraulic as hxhy
 from CoolProp.CoolProp import PropsSI
 import model_fsolve as modf
-import fluids as fds
+
 
 def initialize(path, file_name):
     file_path = path+file_name
@@ -71,41 +70,23 @@ def create_excel(list_Vdot, list_PL, list_tabl, list_agdf, file_name):
     # Save the Excel file
     writer.close()
 
-def testing_series(file_name, list_QF, list_QF_out, list_alpha, par,cond):
-    rho = cond["rho"]
-    eta = cond["eta"]
-    ep = par["roughness"]
-    Din = par["D_man"]
-    Dout = par["D_man"]
-    Dx = par["D_riser"]*np.sqrt(par['N'])
-    Ax = par["A_riser"]*par['N']
-    L_man = par["L_man"]
-    L_riser = par["L_riser"]
+
+def testing_series_Qmax(Qmax, list_Qin, list_alpha, par, cond, to_excel=False, file_name=None):
     ref = par["ref"]
 
-    df_QF = pd.DataFrame({'QF' : list_QF})
-    df_QF_out = pd.DataFrame({'QF_out' : list_QF_out})
+    df_QF = pd.DataFrame({'Qin_d' : list_Qin})
+    df_QF['Qin_c'] = Qmax - df_QF['Qin_d']
     df_alpha = pd.DataFrame({'alpha' : list_alpha})
-    df_cond_testings = df_QF.merge(df_QF_out, how = 'cross').merge(df_alpha, how='cross')
-    list_testings = []
-    for i in list(df_cond_testings.index):
-        tabl, PL, df_PL, testings = modf.PL_fsolve(par,cond, series=list(df_cond_testings.loc[i]))
-        list_testings.append(testings)
+    df_cond_testings = df_QF.merge(df_alpha, how='cross')
+    for i in range(len(df_cond_testings)):
+        tabl, PL, df_PL, residuals = modf.PL_fsolve(par,cond, series=list(df_cond_testings.loc[i]))
+        N = len(tabl)
+        df_cond_testings.loc[i,"Pin_d"] = tabl.iloc[0]['Pin']
+        df_cond_testings.loc[i,"Pout_d"] = tabl.iloc[N-1]['Pin']
+        df_cond_testings.loc[i,"Pin_c"] = tabl.iloc[ref]['Pout']
+        df_cond_testings.loc[i,"Pout_c"] = tabl.iloc[N-1-ref]['Pout']
 
-    df_testings = pd.DataFrame(list_testings, columns=["Pin 1", "uin 1", "Pin 2", "uin 2", "Pout 1", "uout 1", "Pout 2", "uout 2"])
-    df_testings['ux'] = df_cond_testings['alpha']*df_cond_testings['QF']/Ax   
+    if to_excel:
+        df_cond_testings.to_excel(file_name)
 
-    df_testings["Rein"] = fds.core.Reynolds((df_testings["uin 1"] + df_testings["uin 2"])/2,Din,rho,mu=eta)
-    df_testings["Reout"] = fds.core.Reynolds((df_testings["uout 1"] + df_testings["uout 2"])/2,Dout,rho,mu=eta)
-    df_testings["Rex"] = fds.core.Reynolds(df_testings["ux"],Dx,rho,mu=eta)
-    df_testings["fin"] = [fds.friction.friction_factor(Re = df_testings.loc[i]["Rein"],eD = ep/Din) for i in range(len(df_testings))]
-    df_testings["fout"] = [fds.friction.friction_factor(Re = df_testings.loc[i]["Reout"],eD = ep/Dout) for i in range(len(df_testings))]
-    df_testings["fx"] = [fds.friction.friction_factor(Re = df_testings.loc[i]["Rex"],eD = ep/Dx) for i in range(len(df_testings))]
-
-    df_testings["DPin"] = df_testings["Pin 1"] - df_testings["Pin 2"] + (rho/2) * (df_testings["uin 1"]**2 - df_testings["uin 2"]**2 - df_testings["fin"]*L_man*df_testings["uin 2"]**2/Din)
-    df_testings["DPout"] = df_testings["Pout 1"] - df_testings["Pout 2"] + (rho/2)*(df_testings["uout 1"]**2 - df_testings["uout 2"]**2 - df_testings["fout"]*L_man*df_testings["uout 2"]**2/Dout)
-    df_testings["DPx"] = df_testings["Pin 1"]- df_testings["Pout 2"] + (rho/2)*(df_testings["uin 1"]**2 - df_testings["uout 2"]**2 - df_testings["fx"]*L_riser*df_testings["ux"]**2/Dx)
-
-    df_testings = df_cond_testings.join(df_testings[["DPin","DPout","DPx"]])
-    df_testings.to_excel(file_name, index=False)
-    return(df_testings)
+    return(df_cond_testings)

@@ -100,6 +100,13 @@ class hx_harp:
         self.coeff_Kyin = coeff_Kyin
         self.coeff_Kyout = coeff_Kyout
 
+    def change_man_diameter(self, D):
+        self.man.D = D
+        self.man.A = math.pi*(D/2)**2
+
+    def change_riser_diameter(self, D):
+        self.riser.D = D
+        self.riser.A = math.pi*(D/2)**2
 
 class system_harp:
 
