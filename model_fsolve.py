@@ -157,10 +157,10 @@ def initialize(q_init, par, cond, series = False):
 
     Qin_0, Qout_0, uin_0, ux_0, uout_0, Rein_0, Rex_0, Reout_0, fin_0, fx_0, fout_0, Kxin_0, Kyin_0, Kxout_0, Kyout_0, Lex_0 = calc(X0[2*N:], par, cond, series=series) 
     
-    if par["sch"] == "exchanger":
+    if par["regular_PL_calculation_method"] == "friction_factor":
             b_x = 0. # linear part
             a_x = fx_0[i]*(Lx/Dx) # second order part
-    elif par["sch"] == "system":
+    elif par["regular_PL_calculation_method"] == "custom":
             a_x = par["a_x"]
             b_x = par["b_x"]
 
@@ -202,17 +202,22 @@ def compute_PL(q_sol, par, cond, series = False, fappx = 0.25):
     ref = par["ref"]
     rho = cond["rho"]
 
-    if par["sch"] == "exchanger":
-        b_x = 0.      
-    elif par["sch"] == "system":
-        b_x = par["b_x"]    
-    elif par["sch"] == "Triple":
-        b_x = 0.
-
     Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex = calc(q_sol, par, cond, series=series)
 
+    if par["regular_PL_calculation_method"] == "friction_factor":
+        b_x = np.zeros(N) # linear part
+        a_x = np.array([(fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx for i in range(N)])  # second order part
+                
+    elif par["regular_PL_calculation_method"] == "custom":
+        a_x = np.array([par["a_x"] for i in range(N)])
+        b_x = np.array([par["b_x"] for i in range(N)])
+
+    elif par["regular_PL_calculation_method"] == "Triple":
+        a_x = Triple_ax(x[2*N+i])
+        b_x = 0.
+
     PRec = (rho/2)*(uin[N-1]**2-uout[ref]**2)*np.ones(N)
-    PL_riser = (rho/2)*np.array([b_x*ux[i]+((fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx)*ux[i]**2 for i in range(N)])
+    PL_riser = (rho/2)*np.array([ b_x[i]*ux[i] + a_x[i]*ux[i]**2 for i in range(N)])
 
     if ref==0:
         PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(0,i)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
@@ -280,19 +285,19 @@ def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False):
                 else :
                     leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
                                 
-            if par["sch"] == "exchanger":
+            if par["regular_PL_calculation_method"] == "friction_factor":
                 b_x = 0. # linear part
                 a_x = (fx[i]*(Lx-Lex[i])+ 4*fappx*fx[i]*Lex[i])/Dx  # second order part
                         
-            elif par["sch"] == "system":
+            elif par["regular_PL_calculation_method"] == "custom":
                 a_x = par["a_x"]
                 b_x = par["b_x"]
 
-            elif par["sch"] == "Triple":
+            elif par["regular_PL_calculation_method"] == "Triple":
                 a_x = Triple_ax(x[2*N+i])
                 b_x = 0.
 
-            leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i]+a_x*ux[i]**2+Kx_in[i]*uin[i]**2+Kx_out[i]*uout[i]**2))
+            leq.append(x[i] - x[N+i] - (rho/2)*(uout[i]**2-uin[i]**2 + b_x*ux[i] + a_x*ux[i]**2 + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2))
         
         leq.append(sum([x[j] for j in range(2*N,3*N)]) - QF*alpha)
         leq.append(x[N+ref] - 0)

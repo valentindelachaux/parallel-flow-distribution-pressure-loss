@@ -14,12 +14,33 @@ import fluids as fds
 
 import data_processing as dp
 
+def find_fluid(fluid):
+
+    if type(fluid) == str:
+        return fluid
+    
+    elif type(fluid) == dict:
+        fluid_name = fluid.get('name','')
+        glycol_rate = fluid.get('glycol_rate',0)
+
+        if fluid_name == 'MPG' or fluid_name == 'MEG':
+            fluid = f'INCOMP::{fluid_name}[{glycol_rate}]'
+        else:
+            fluid = fluid_name
+
+        return fluid
+    
+    else:
+        raise TypeError("Fluid must be a string or a dictionary")
+
+
 class hx_harp:
 
     def __init__(self,par):
-        self.sch = par["sch"]
+        
+        self.config = par["config"]
 
-        if self.sch == "exchanger":
+        if self.config == "hx":
 
             self.N_panel = par["N_panel"]
             self.N_EP = par["N_EP"]
@@ -50,14 +71,13 @@ class hx_harp:
         else:
 
             self.N_panel = par["N_panel"]
-            self.a_x = par["a_x"]
-            self.b_x = par["b_x"]
             self.inter_panel = par["inter_panel"]
-
             self.N = self.N_panel
-
             self.Ly = (self.N_panel-1)*[self.inter_panel]
 
+        self.regular_PL_calculation_method = par["regular_PL_calculation_method"]
+        self.a_x = par["a_x"]
+        self.b_x = par["b_x"]
 
         self.riser = duct(par["shape_riser"],par["D_riser"],par["h_riser"],par["w_riser"],par["L_riser"])
         self.man = duct(par["shape_man"],par["D_man"],par["h_man"],par["w_man"],par["L_man"])
@@ -170,17 +190,16 @@ class duct:
         self.D = D
         self.A = math.pi*(self.D/2)**2
 
-    def regular_PL(self,Vdot,fluid,glycol_rate,p,T):
+    def regular_PL(self,Vdot,fluid_dict,p,T):
         """Computes regular pressure losses for the duct in kPa"""
 
-        Dv = Vdot/(3.6*1E6)
+        fluid = find_fluid(fluid_dict)
+
+        Dv = Vdot/(3.6*1E6) # m3/s
         V = Dv/self.A
 
-        p = dp.check_unit_p(p)
-        T = dp.check_unit_T(T)
-
-        rho = PropsSI('D', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
-        eta = PropsSI('V', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
+        rho = PropsSI('D', 'P', p, 'T', T, fluid) # kg/m3
+        eta = PropsSI('V', 'P', p, 'T', T, fluid) # kg/m3
 
         Re = fds.core.Reynolds(V,self.D,rho,mu=eta) # viscosité dynamique mu ou eta)
         f = fds.friction.friction_factor(Re = Re,eD=self.k/self.D)
