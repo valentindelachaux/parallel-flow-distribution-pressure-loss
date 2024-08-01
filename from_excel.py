@@ -1,7 +1,7 @@
 import sys
-sys.path.append("../RD-systems-and-test-benches/utils")
+sys.path.append("../RD-systems-and-test-benches")
 import pandas as pd
-import data_processing as dp
+import utils.data_processing as dp
 import hx_hydraulic as hxhy
 from CoolProp.CoolProp import PropsSI
 import model_fsolve as modf

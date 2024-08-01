@@ -58,7 +58,7 @@ def calc(q_vect, par, cond, series = False):
         Lex : list, longueur de développement de l'écoulement dans les canaux
     """
     # Parameters
-    N=par["N"]
+    N = par["N"]
 
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
     theta = par["theta"]
@@ -67,8 +67,8 @@ def calc(q_vect, par, cond, series = False):
     Ain = par["A_man"]
     Aout = par["A_man"]
     Dx = par["D_riser"]
-    Din = par["D_man"]
-    Dout = par["D_man"]
+    D_in = par["D_in"]
+    D_out = par["D_out"]
 
     c_Kxin = par["coeff_Kxin"]
     c_Kxout = par["coeff_Kxout"]
@@ -101,20 +101,26 @@ def calc(q_vect, par, cond, series = False):
     uin = Qin/Ain
     ux = q_vect/Ax
     uout = Qout/Aout
-    Rein = fds.core.Reynolds(uin,Din,rho,mu=eta)
+    Rein = fds.core.Reynolds(uin,D_in,rho,mu=eta)
     Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
     Lex = 0.05*np.sqrt(4*Ax/np.pi)*Rex
-    Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
-    fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(N)]
+    Reout = fds.core.Reynolds(uout,D_out,rho,mu=eta)
+    fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/D_in) for i in range(N)]
+
+    if par['specific_inter_panel'] == 1:
+        for i in range(N):
+            if (i >= 1) & (i % (par['N_riser_per_panel']) == 0):
+                fin[i] = par['inter_panel_coeff'] * D_in / (par['Ly'][i-1])
+
     fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(N)]
-    fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/Dout) for i in range(N)]
-    Kx_in = [Kxin(Din,Dx,theta,Qin[i],q_vect[i],i,c_Kxin, method) for i in range(N)]
+    fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/D_out) for i in range(N)]
+    Kx_in = [Kxin(D_in,Dx,theta,Qin[i],q_vect[i],i,c_Kxin, method) for i in range(N)]
     if not(series):
-        Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin, method=method) for i in range(1,N)]
+        Ky_in = [0]+[Kyin(D_in,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin, method=method) for i in range(1,N)]
     else :
-        Ky_in = [Kyin(Din,Dx,theta,QF*(1-alpha),q_vect[0],0,c_Kyin, method=method)]+[Kyin(Din,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin, method=method) for i in range(1,N)]
-    Kx_out = [Kxout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kxout, method=method) for i in range(N)]
-    Ky_out = [Kyout(Dout,Dx,theta,Qout[i],q_vect[i],i,c_Kyout, method=method) for i in range(N)]           
+        Ky_in = [Kyin(D_in,Dx,theta,QF*(1-alpha),q_vect[0],0,c_Kyin, method=method)]+[Kyin(D_in,Dx,theta,Qin[i-1],q_vect[i],i,c_Kyin, method=method) for i in range(1,N)]
+    Kx_out = [Kxout(D_out,Dx,theta,Qout[i],q_vect[i],i,c_Kxout, method=method) for i in range(N)]
+    Ky_out = [Kyout(D_out,Dx,theta,Qout[i],q_vect[i],i,c_Kyout, method=method) for i in range(N)]           
     
     return Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex
 
@@ -134,7 +140,7 @@ def initialize(q_init, par, cond, series = False):
     N = par["N"]
     Lx = par["L_riser"]
     Dx = par["D_riser"]
-    Din = par["D_man"]
+    D_in = par["D_in"]
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
     Ly_list = par["Ly"]
 
@@ -164,7 +170,7 @@ def initialize(q_init, par, cond, series = False):
             a_x = par["a_x"]
             b_x = par["b_x"]
 
-    dPin_0 = [(rho/2)*(uin_0[i-1]**2-uin_0[i]**2 + (fin_0[i]*Ly_list[i-1]*uin_0[i]**2)/Din + Kyin_0[i]*uin_0[i]**2) for i in range(1,N-1)]
+    dPin_0 = [(rho/2)*(uin_0[i-1]**2-uin_0[i]**2 + (fin_0[i]*Ly_list[i-1]*uin_0[i]**2)/D_in + Kyin_0[i]*uin_0[i]**2) for i in range(1,N-1)]
     DPx_ref = (rho/2)*(fx_0[ref]*(Lx/Dx)*ux_0[ref]**2+Kxin_0[ref]*uin_0[ref]**2+Kxout_0[ref]*uout_0[ref]**2)
     Pin_0 = [DPx_ref + sum(dPin_0[:i]) for i in range(N)]
     if ref == 0:
@@ -197,8 +203,8 @@ def compute_PL(q_sol, par, cond, series = False, fappx = 0.25):
     Lx = par["L_riser"]
     Ly_list = par["Ly"]
     Dx = par["D_riser"]
-    Din = par["D_man"]
-    Dout = par["D_man"]
+    D_in = par["D_in"]
+    D_out = par["D_out"]
     ref = par["ref"]
     rho = cond["rho"]
 
@@ -221,11 +227,11 @@ def compute_PL(q_sol, par, cond, series = False, fappx = 0.25):
 
     if ref==0:
         PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(0,i)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
-        PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(1,i+1)]) for i in range(N)])
+        PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/D_in for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/D_out for j in range(1,i+1)]) for i in range(N)])
 
     else :
         PL_t = (rho/2)*np.array([sum([Ky_in[j]*uin[j]**2 for j in range(i+1,N)]) + sum([Ky_out[j]*uout[j]**2 for j in range(i+1,N)]) + Kx_in[i]*uin[i]**2 + Kx_out[i]*uout[i]**2 for i in range(N)])
-        PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/Din for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/Dout for j in range(i+1,N)]) for i in range(N)])
+        PL_man = (rho/2)*np.array([sum([fin[j]*Ly_list[j-1]*uin[j]**2/D_in for j in range(i+1,N)]) + sum([fout[j]*Ly_list[j-1]*uout[j]**2/D_out for j in range(i+1,N)]) for i in range(N)])
     
     PL_tot = PL_riser + PL_t + PL_man
     df_PL = pd.DataFrame((list(zip(PL_tot,  PL_man, PL_riser, PL_t, PRec))), columns = ["Total PL", "RPL manifold", "RPL riser", "SPL tee", "Pressure recovery"])
@@ -262,8 +268,8 @@ def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False):
     ref = par["ref"] # 0 (en Z) ou N-1 (en U)
 
     Dx = par["D_riser"]
-    Din = par["D_man"]
-    Dout = par["D_man"]
+    D_in = par["D_in"]
+    D_out = par["D_out"]
     Lx = par["L_riser"]
 
     Ly_list = par["Ly"] # N-1 values
@@ -279,11 +285,11 @@ def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False):
 
         for i in range(N):
             if i>=1:
-                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/Din + Ky_in[i]*uin[i-1]**2))
+                leq.append(x[i] - x[i-1] - (rho/2)*(uin[i-1]**2-uin[i]**2 + (fin[i]*Ly_list[i-1]*uin[i]**2)/D_in + Ky_in[i]*uin[i-1]**2))
                 if ref == 0 :
-                    leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/Dout + Ky_out[i-1]*uout[i-1]**2))
+                    leq.append(x[N+i] - x[N+i-1] - (rho/2)*(uout[i-1]**2-uout[i]**2 + (fout[i]*Ly_list[i-1]*uout[i]**2)/D_out + Ky_out[i-1]*uout[i-1]**2))
                 else :
-                    leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/Dout + Ky_out[i]*uout[i]**2)) 
+                    leq.append(x[N+i-1] - x[N+i] - (rho/2)*(uout[i]**2-uout[i-1]**2 + (fout[i]*Ly_list[i-1]*uout[i-1]**2)/D_out + Ky_out[i]*uout[i]**2)) 
                                 
             if par["regular_PL_calculation_method"] == "friction_factor":
                 b_x = 0. # linear part

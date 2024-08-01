@@ -32,8 +32,8 @@ class flow_field:
         Ain = par["A_man"]
         Aout = par["A_man"]
         Dx = par["D_riser"]
-        Din = par["D_man"]
-        Dout = par["D_man"]
+        D_in = par["D_in"]
+        D_out = par["D_out"]
         c_Kxin = par["coeff_Kxin"]
         c_Kxout = par["coeff_Kxout"]
         c_Kyin = par["coeff_Kyin"]
@@ -54,17 +54,17 @@ class flow_field:
         uin = Qin/Ain
         ux = self.X/Ax
         uout = Qout/Aout
-        Rein = fds.core.Reynolds(uin,Din,rho,mu=eta)
+        Rein = fds.core.Reynolds(uin,D_in,rho,mu=eta)
         Rex = fds.core.Reynolds(ux,Dx,rho,mu=eta)
         Lex = 0.05*np.sqrt(4*Ax/np.pi)*Rex
-        Reout = fds.core.Reynolds(uout,Dout,rho,mu=eta)
-        fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/Din) for i in range(self.N)]
+        Reout = fds.core.Reynolds(uout,D_out,rho,mu=eta)
+        fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/D_in) for i in range(self.N)]
         fx = [fds.friction.friction_factor(Re = Rex[i],eD=ep/Dx) for i in range(self.N)]
-        fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/Dout) for i in range(self.N)]
-        Kx_in = [Kxin(Din,Dx,theta,Qin[i],self.X[i],i,c_Kxin, method) for i in range(self.N)]
-        Ky_in = [0]+[Kyin(Din,Dx,theta,Qin[i-1],self.X[i],i,c_Kyin, method=method) for i in range(1,self.N)]
-        Kx_out = [Kxout(Dout,Dx,theta,Qout[i],self.X[i],i,c_Kxout, method=method) for i in range(self.N)]
-        Ky_out = [Kyout(Dout,Dx,theta,Qout[i],self.X[i],i,c_Kyout, method=method) for i in range(self.N)]           
+        fout = [fds.friction.friction_factor(Re = Reout[i],eD=ep/D_out) for i in range(self.N)]
+        Kx_in = [Kxin(D_in,Dx,theta,Qin[i],self.X[i],i,c_Kxin, method) for i in range(self.N)]
+        Ky_in = [0]+[Kyin(D_in,Dx,theta,Qin[i-1],self.X[i],i,c_Kyin, method=method) for i in range(1,self.N)]
+        Kx_out = [Kxout(D_out,Dx,theta,Qout[i],self.X[i],i,c_Kxout, method=method) for i in range(self.N)]
+        Ky_out = [Kyout(D_out,Dx,theta,Qout[i],self.X[i],i,c_Kyout, method=method) for i in range(self.N)]           
 
         field_df= pd.DataFrame({"Qin":Qin,"Qout":Qout,"uin":uin,"ux":ux,"uout":uout,"Rein":Rein,"Rex":Rex,"Reout":Reout,"fin":fin,"fx":fx,"fout":fout,"Kx_in":Kx_in,"Ky_in":Ky_in,"Kx_out":Kx_out,"Ky_out":Ky_out,"Lex":Lex})
 
@@ -110,7 +110,7 @@ def inlet_pressure(field):
     N=field.N
     ref = field.ref
     Dx = field.D_riser
-    Din = field.D_man
+    D_in = field.D_man
     Lx = field.L_riser
     Ly_list = field.Ly
     rho = field.cond.rho
@@ -126,10 +126,10 @@ def inlet_pressure(field):
     Pin[ref] = (rho/2)*(fx[ref]*(Lx/Dx)*ux[ref]**2+Kxin[ref]*uin[ref]**2+Kxout[ref]*uout[ref]**2)
     if ref == 0:
         for i in range(1,N):
-            Pin[i] = Pin[i-1]+(rho/2)*(uin[i-1]**2-uin[i]**2 + fin[i]*(Ly_list[i-1]/Din)*uin[i]**2 + Kyin[i]*uin[i]**2)
+            Pin[i] = Pin[i-1]+(rho/2)*(uin[i-1]**2-uin[i]**2 + fin[i]*(Ly_list[i-1]/D_in)*uin[i]**2 + Kyin[i]*uin[i]**2)
     else:
         for i in range(N-2,-1,-1):
-            Pin[i] = Pin[i+1]+(rho/2)*(uin[i+1]**2-uin[i]**2 + fin[i]*(Ly_list[i]/Din)*uin[i]**2 + Kyin[i]*uin[i]**2)
+            Pin[i] = Pin[i+1]+(rho/2)*(uin[i+1]**2-uin[i]**2 + fin[i]*(Ly_list[i]/D_in)*uin[i]**2 + Kyin[i]*uin[i]**2)
     
     return Pin
 
@@ -153,7 +153,7 @@ def f(field):
 
 def g(field):
     N = field.N
-    Dout = field.D_man
+    D_out = field.D_man
     rho = field.cond.rho
     uout = field.uout
     Ky_out = field.Ky_out
@@ -162,10 +162,10 @@ def g(field):
     Pout = np.zeros(N)
     if field.ref == 0:
         for i in range(1,N):
-            Pout[i] = Pout[i-1] + (rho/2)*(uout[i-1]**2 - uout[i]**2 + fout[i]*(Ly_list[i-1]/Dout)*uout[i]**2 + Ky_out[i]*uout[i]**2)
+            Pout[i] = Pout[i-1] + (rho/2)*(uout[i-1]**2 - uout[i]**2 + fout[i]*(Ly_list[i-1]/D_out)*uout[i]**2 + Ky_out[i]*uout[i]**2)
     else:
         for i in range(N-2,-1,-1):
-            Pout[i] = Pout[i+1] + (rho/2)*(uout[i+1]**2 - uout[i]**2 + fout[i]*(Ly_list[i]/Dout)*uout[i]**2 + Ky_out[i]*uout[i]**2)
+            Pout[i] = Pout[i+1] + (rho/2)*(uout[i+1]**2 - uout[i]**2 + fout[i]*(Ly_list[i]/D_out)*uout[i]**2 + Ky_out[i]*uout[i]**2)
 
     return Pout
 

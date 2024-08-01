@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 from datetime import datetime
 
@@ -12,7 +13,8 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from CoolProp.CoolProp import PropsSI
 import fluids as fds
 
-import data_processing as dp
+sys.path.append('../RD-systems-and-test-benches')
+import utils.data_processing as dp
 
 def find_fluid(fluid):
 
@@ -80,6 +82,8 @@ class hx_harp:
         self.b_x = par["b_x"]
 
         self.riser = duct(par["shape_riser"],par["D_riser"],par["h_riser"],par["w_riser"],par["L_riser"])
+        self.man_in = duct(par["shape_man"],par["D_in"],par["h_man"],par["w_man"],par["L_man"])
+        self.man_out = duct(par["shape_man"],par["D_out"],par["h_man"],par["w_man"],par["L_man"])
         self.man = duct(par["shape_man"],par["D_man"],par["h_man"],par["w_man"],par["L_man"])
 
         self.type = par["type"]
@@ -92,6 +96,9 @@ class hx_harp:
     
         self.theta = par["theta"]
         self.roughness = par["roughness"]
+
+        self.specific_inter_panel = par["specific_inter_panel"]
+        self.inter_panel_coeff = par["inter_panel_coeff"]
 
         self.coeff_Kxin = par["coeff_Kxin"]
         self.coeff_Kxout = par["coeff_Kxout"]
@@ -108,9 +115,13 @@ class hx_harp:
     def make_dict(self):
         dict_riser = dict(("{}_{}".format(k,"riser"),v) for k,v in vars(self.riser).items())
         dict_man = dict(("{}_{}".format(k,"man"),v) for k,v in vars(self.man).items())
-        par = {**vars(self),**dict_riser,**dict_man}
+        dict_man_in = dict(("{}_{}".format(k,"in"),v) for k,v in vars(self.man_in).items())
+        dict_man_out = dict(("{}_{}".format(k,"out"),v) for k,v in vars(self.man_out).items())
+        par = {**vars(self),**dict_riser,**dict_man,**dict_man_in,**dict_man_out}
         par.pop("riser")
         par.pop("man")
+        par.pop("man_in")
+        par.pop("man_out")
 
         return par
 
@@ -134,14 +145,14 @@ class system_harp:
 
         self.shape_man = par["shape_man"]
         if self.shape_man == "tubular":
-            self.Din = par["Din"]
-            self.Dout = par["Dout"]
-            self.Ain = math.pi*(self.Din/2)**2
-            self.Aout = math.pi*(self.Dout/2)**2
+            self.D_in = par["D_in"]
+            self.D_out = par["D_out"]
+            self.Ain = math.pi*(self.D_in/2)**2
+            self.Aout = math.pi*(self.D_out/2)**2
         elif self.shape_man == "rectangular":
             self.h_man = par["h_man"]
             self.w_man = par["w_man"]
-            self.Din = 2*(self.h_man*self.w_man)/(self.h_man+self.w_man)
+            self.D_in = 2*(self.h_man*self.w_man)/(self.h_man+self.w_man)
             self.Ain = self.h_man * self.w_man
             self.Aout = self.Ain
 
@@ -190,8 +201,7 @@ class duct:
         self.D = D
         self.A = math.pi*(self.D/2)**2
 
-    def regular_PL(self,Vdot,fluid_dict,p,T):
-        """Computes regular pressure losses for the duct in kPa"""
+    def get_flow(self, Vdot, fluid_dict, p, T):
 
         fluid = find_fluid(fluid_dict)
 
@@ -206,7 +216,23 @@ class duct:
         K = fds.K_from_f(f,self.L,self.D)
         dP = fds.dP_from_K(K,rho,V=V)/1000
 
-        return dP
+        self.Dv = Dv
+        self.Re = Re
+        self.V = V
+
+        self.rho = rho
+        self.eta = eta
+        
+        self.f = f
+        self.K = K
+        self.dP = dP
+
+    def regular_PL(self, Vdot, fluid_dict, p, T):
+        """Computes regular pressure losses for the duct in kPa"""
+
+        self.get_flow(Vdot,fluid_dict,p,T)
+
+        return self.dP
     
 class bend:
 
