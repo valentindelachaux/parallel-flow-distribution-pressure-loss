@@ -166,6 +166,30 @@ class duct:
         self.D = D
         self.A = math.pi*(self.D/2)**2
 
+    def set_fluid(self,fluid='INCOMP::MPG[0.]',p=1.5E5,T=293.15):
+
+        rho = PropsSI('D', 'P', p, 'T', T, fluid)
+        eta = PropsSI('V', 'P', p, 'T', T, fluid)
+
+        self.fluid = fluid
+        self.rho = rho
+        self.eta = eta
+
+    def set_Vdot(self,Vdot):
+        self.Vdot = Vdot
+        self.Dv = self.Vdot/(3.6*1E6)
+        self.mdot = self.Dv*self.rho
+        self.linear_velocity = self.Dv/self.A
+
+    def set_mdot(self,mdot):
+        self.mdot = mdot
+        self.Dv = self.mdot/self.rho
+        self.Vdot = self.Dv*3.6*1E6
+        self.linear_velocity = self.Dv/self.A
+
+    def compute_Reynolds(self):     
+        self.Re = fds.core.Reynolds(self.linear_velocity,self.D,self.rho,mu=self.eta)
+
     def regular_PL(self,Vdot,fluid,glycol_rate,p,T):
         """Computes regular pressure losses for the duct in kPa"""
 
