@@ -360,10 +360,40 @@ def create_named_expression(tui, named_expression, definition, unit) :
     concatenate_and_write_to_file(string_list,fp_cmd+'\\create_named_expression.txt')
     tui.file.read_journal(f'"{fp_cmd}\\create_named_expression.txt"')
 
+def change_bc_wall(tui, name, type, thickness, temperature):
+
+    if type == "conductive_temperature_field":
+        string_list = [f"""
+    define/boundary-conditions/wall {name} {thickness} no 0 no yes temperature no {temperature} no no no 1"""]
+    
+    else:
+        raise Exception('Invalid type')
+    
+    concatenate_and_write_to_file(string_list, fp_cmd+'\\change_bc_wall.txt')
+    tui.file.read_journal(f'"{fp_cmd}\\change_bc_wall.txt"')
+
 def create_field(tui, named_expression, definition) :
     string_list = [f"""define/named-expressions/add \"{named_expression}\" definition "{definition}" quit"""]
     concatenate_and_write_to_file(string_list,fp_cmd+'\\create_field.txt')
     tui.file.read_journal(f'"{fp_cmd}\\create_field.txt"')
+
+def compute_surface_temperatures(tui, choice, fp):
+    if choice == "pvt_slice_outdoor_Fluent_GMI_fins":
+        string_list = [f"""(cx-gui-do cx-activate-item "Ribbon*Frame1*Frame6(Results)*Table1*Table3(Reports)*PushButton4(Surface Integrals)")
+(cx-gui-do cx-set-list-selections "Surface Integrals*Table1*DropDownList1(Report Type)" '( 1))
+(cx-gui-do cx-activate-item "Surface Integrals*Table1*DropDownList1(Report Type)")
+(cx-gui-do cx-set-list-selections "Surface Integrals*Table2*DropDownList1(Field Variable)" '( 4))
+(cx-gui-do cx-activate-item "Surface Integrals*Table2*DropDownList1(Field Variable)")
+(cx-gui-do cx-activate-item "Surface Integrals*Table2*Table4*List1(Surfaces)")
+(cx-gui-do cx-set-list-selections "Surface Integrals*Table2*Table4*List1(Surfaces)" '( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104))
+(cx-gui-do cx-activate-item "Surface Integrals*Table2*Table4*List1(Surfaces)")
+(cx-gui-do cx-activate-item "Surface Integrals*PanelButtons*PushButton4(Write)")
+(cx-gui-do cx-set-file-dialog-entries "Select File" '( "{fp}") "Surface Report Files (*.srp)")
+(cx-gui-do cx-activate-item "Surface Integrals*PanelButtons*PushButton2(Cancel)")]"""]
+        concatenate_and_write_to_file(string_list,fp_cmd+'\\compute_surface_temperatures.txt')
+        tui.file.read_journal(f'"{fp_cmd}\\compute_surface_temperatures.txt"')
+    else:
+        raise Exception('Invalid choice')
 
 def change_field(tui, named_expression, definition) :
     string_list = [f"""define/named-expressions/edit \"{named_expression}\" definition "{definition}" quit"""]
@@ -628,14 +658,23 @@ def change_mesh(tui, mesh_path, mesh_name_wo_ext):
     concatenate_and_write_to_file(string_list,fp_cmd+'\\change_mesh.txt')
     tui.file.read_journal(f'"{fp_cmd}\\change_mesh.txt"')
 
-def create_radiation(tui, mesh_name_wo_ext) : 
+def create_radiation(tui, S2S_fp, caoMeshCode): 
     string_list = [f"""/file/set-tui-version "22.2"
 (cx-gui-do cx-activate-item "Ribbon*Frame1*Frame3(Physics)*Table1*Table3(Models)*PushButton2(Radiation)")
 (cx-gui-do cx-activate-item "Radiation Model*Table1*Frame3*Table1*Table2(View Factors and Clustering)*PushButton1( Compute/Write/Read)")
-(cx-gui-do cx-set-file-dialog-entries "Select File" '( "{mesh_name_wo_ext}.s2s.h5") "CFF S2S Files (*.s2s.h5 )")
+(cx-gui-do cx-set-file-dialog-entries "Select File" '( "{os.path.join(S2S_fp,caoMeshCode)}.s2s.h5") "CFF S2S Files (*.s2s.h5 )")
 (cx-gui-do cx-activate-item "Radiation Model*PanelButtons*PushButton1(OK)")"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_mesh.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_mesh.txt"')
+    concatenate_and_write_to_file(string_list,fp_cmd+'\\create_radiation.txt')
+    tui.file.read_journal(f'"{fp_cmd}\\create_radiation.txt"')
+
+def read_radiation(tui, S2S_fp, caoMeshCode) :
+    string_list = [f"""/file/set-tui-version "22.2"
+(cx-gui-do cx-activate-item "Ribbon*Frame1*Frame3(Physics)*Table1*Table3(Models)*PushButton2(Radiation)")
+(cx-gui-do cx-activate-item "Radiation Model*Table1*Frame3*Table1*Table2(View Factors and Clustering)*PushButton2(   Read Existing File)")
+(cx-gui-do cx-set-file-dialog-entries "Select File" '( "{os.path.join(S2S_fp,caoMeshCode)}.s2s.h5") "CFF S2S Files (*.s2s.h5 )")
+(cx-gui-do cx-activate-item "Radiation Model*PanelButtons*PushButton1(OK)")"""]
+    concatenate_and_write_to_file(string_list,fp_cmd+'\\read_radiation.txt')
+    tui.file.read_journal(f'"{fp_cmd}\\read_radiation.txt"')
 
 def compute_mass_flow_rate(tui, surface_name, output_folder_path, output_file_name_wo_ext):
     file_path = os.path.join(output_folder_path, output_file_name_wo_ext)
