@@ -216,9 +216,11 @@ class duct:
         K = fds.K_from_f(f,self.L,self.D)
         dP = fds.dP_from_K(K,rho,V=V)/1000
 
+        self.Vdot = Vdot
         self.Dv = Dv
         self.Re = Re
         self.V = V
+        self.mdot = self.Dv*self.rho
 
         self.rho = rho
         self.eta = eta
@@ -226,6 +228,9 @@ class duct:
         self.f = f
         self.K = K
         self.dP = dP
+
+    def compute_Reynolds(self):     
+        self.Re = fds.core.Reynolds(self.linear_velocity,self.D,self.rho,mu=self.eta)
 
     def regular_PL(self, Vdot, fluid_dict, p, T):
         """Computes regular pressure losses for the duct in kPa"""
