@@ -107,7 +107,7 @@ def calc(q_vect, par, cond, series = False):
     Reout = fds.core.Reynolds(uout,D_out,rho,mu=eta)
     fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/D_in) for i in range(N)]
 
-    if par['specific_inter_panel'] == 1:
+    if par['s'] == 1:
         for i in range(N):
             if (i >= 1) & (i % (par['N_riser_per_panel']) == 0):
                 fin[i] = par['inter_panel_coeff'] * D_in / (par['Ly'][i-1])
