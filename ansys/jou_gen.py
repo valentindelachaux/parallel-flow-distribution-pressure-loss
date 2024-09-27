@@ -395,6 +395,12 @@ def compute_surface_temperatures(tui, choice, fp):
     else:
         raise Exception('Invalid choice')
 
+def change_report_file_path(tui, report_name, chosen_path):
+
+    string_list = [f"""solve/report-files/edit/{report_name} file-name \"{chosen_path}\""""]
+    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_report_file_path.txt')
+    tui.file.read_journal(f'"{fp_cmd}\\change_report_file_path.txt"')
+
 def change_field(tui, named_expression, definition) :
     string_list = [f"""define/named-expressions/edit \"{named_expression}\" definition "{definition}" quit"""]
     concatenate_and_write_to_file(string_list,fp_cmd+'\\change_existing_expression.txt')
@@ -474,7 +480,6 @@ def standard_initialization(tui, surface_index, gauge_pressure_value, x_velocity
 (cx-gui-do cx-activate-item "Solution Initialization*Table1*Frame9*PushButton1(Initialize)")"""]
     concatenate_and_write_to_file(string_list,fp_cmd+'\\initialize.txt')
     tui.file.read_journal(f'"{fp_cmd}\\initialize.txt"')
-
 
 def write_time(tui, folder_path, output_file_name_wo_ext):
 
@@ -580,6 +585,11 @@ def convert_report(folder_path,file_name,column_name,output_folder_path,output_f
 def convert_parametric_reports(folder_path, report_type, liste):
     for i in liste:
         convert_report(folder_path,f'DP{i}_{report_type}',report_type)
+
+def change_bc_type(tui, name, type):
+    string_list = [f"""define/boundary-conditions/zone-type {name} {type}"""]
+    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_bc_type.txt')
+    tui.file.read_journal(f'"{fp_cmd}\\change_bc_type.txt"')
 
 def write_report(tui,measure,output_folder_path,output_file_name_wo_ext):
 

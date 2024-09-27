@@ -13,9 +13,9 @@ from CoolProp.CoolProp import PropsSI
 import fluids as fds
 
 import sys
-sys.path.append('../RD-systems-and-test-benches/utils')
+sys.path.append(r'D:\seagu_OneDrive\Documents\GitHub\RD-systems-and-test-benches')
 
-import data_processing as dp
+import utils.data_processing as dp
 
 class hx_harp:
 
@@ -195,9 +195,6 @@ class duct:
 
         Dv = Vdot/(3.6*1E6)
         V = Dv/self.A
-
-        p = dp.check_unit_p(p)
-        T = dp.check_unit_T(T)
 
         rho = PropsSI('D', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
         eta = PropsSI('V', 'P', p, 'T', T, f'INCOMP::{fluid}[{glycol_rate}]') # kg/m3
