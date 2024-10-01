@@ -11,7 +11,7 @@ import send2trash
 computer = 'seagull'
 
 if computer == 'seagull':
-    fp_cmd = r"D:\ANSYS Fluent Projects\temp"
+    fp_cmd = r"D:\temp"
 elif computer == 'lmps_cds':
     fp_cmd = "/usrtmp/delachaux/temp"
 
@@ -368,8 +368,6 @@ def save_journal(tui, string_list, file_name_wo_ext, read=True):
 
     if read:
         tui.file.read_journal(os.path.join(fp_cmd, f'{file_name_wo_ext}.txt'))
-    else:
-        pass
 
 def change_named_expression(tui, named_expression, definition, unit):
     string_list = [f"""define/named-expressions/edit \"{named_expression}\" definition "{definition} [{unit}]" quit"""]

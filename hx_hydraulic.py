@@ -13,7 +13,9 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from CoolProp.CoolProp import PropsSI
 import fluids as fds
 
-sys.path.append('../RD-systems-and-test-benches')
+current_dir = os.getcwd()
+sys.path.append(os.path.abspath(os.path.join(current_dir, '..', 'RD-systems-and-test-benches')))
+
 import utils.data_processing as dp
 
 def find_fluid(fluid):
