@@ -4,6 +4,8 @@ import pandas as pd
 
 import shutil
 
+import random
+import string
 import send2trash
 
 computer = 'seagull'
@@ -12,6 +14,14 @@ if computer == 'seagull':
     fp_cmd = r"D:\ANSYS Fluent Projects\temp"
 elif computer == 'lmps_cds':
     fp_cmd = "/usrtmp/delachaux/temp"
+
+def generate_unlikely_combination(length=5):
+    # Define a large set of characters (e.g., all letters, digits, and punctuation)
+    char_pool = string.ascii_letters + string.digits + string.punctuation
+    # Randomly sample from the character pool to create a string of the given length
+    combination = ''.join(random.choices(char_pool, k=length))
+    return combination
+# Generate a combination of 5 characters
 
 def create_folder(folder_path):
     """
@@ -514,9 +524,10 @@ def convert_residuals_csv(folder_path,liste):
 
         # Check if file exists before trying to delete it
         if os.path.exists(file_path):
-            send2trash.send2trash(file_path)
-        else:
-            pass
+            if computer == 'seagull':
+                send2trash.send2trash(file_path)
+            else:
+                os.remove(file_path)
 
 def parse_report_to_dataframe(file_path,column_name):
 
@@ -560,15 +571,16 @@ def convert_report(folder_path,file_name,column_name,output_folder_path,output_f
     else:
         pass
 
-    file_path = os.path.join(folder_path, f'{output_file_name_wo_extension}.txt')
+    file_path = os.path.join(folder_path, file_name)
 
     parse_report_to_dataframe(file_path,column_name).to_csv(os.path.join(output_folder_path, f'{output_file_name_wo_extension}.csv'),index=False)
 
     # Check if file exists before trying to delete it
     if os.path.exists(file_path):
-        send2trash.send2trash(file_path)
-    else:
-        pass
+        if computer == 'seagull':
+            send2trash.send2trash(file_path)
+        else:
+            os.remove(file_path)
 
 def convert_parametric_reports(folder_path, report_type, liste):
     for i in liste:
@@ -582,26 +594,26 @@ def write_report(tui,measure,output_folder_path,output_file_name_wo_ext):
 
     if measure == 'mdot':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(tui_write_report_massflow(os.path.join(fp_cmd, "output_temp.txt")))
+            file.write(tui_write_report_massflow(os.path.join(fp_cmd, f"output_temp_{measure}.txt")))
 
     elif measure == 'sp':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(gui_write_report_sp_prepared(os.path.join(fp_cmd, "output_temp.txt")))
+            file.write(gui_write_report_sp_prepared(os.path.join(fp_cmd, f"output_temp_{measure}.txt")))
 
     elif measure == 'ht':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(tui_write_report_ht(os.path.join(fp_cmd, "output_temp.txt")))
+            file.write(tui_write_report_ht(os.path.join(fp_cmd, f"output_temp_{measure}.txt")))
 
     elif measure == 'rad_ht':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(tui_write_report_rad_ht(os.path.join(fp_cmd, "output_temp.txt")))
+            file.write(tui_write_report_rad_ht(os.path.join(fp_cmd, f"output_temp_{measure}.txt")))
 
     else:
         raise Exception('Invalid measure name')
 
     tui.file.read_journal(os.path.join(fp_cmd, "cmd_temp.txt"))
 
-    convert_report(folder_path=fp_cmd,file_name='output_temp.txt',column_name=measure,output_folder_path=output_folder_path,output_file_name_wo_extension=f'{output_file_name_wo_ext}')
+    convert_report(folder_path=fp_cmd,file_name=f"output_temp_{measure}.txt",column_name=measure,output_folder_path=output_folder_path,output_file_name_wo_extension=f'{output_file_name_wo_ext}')
 
 def export(folder_path,name):
 
