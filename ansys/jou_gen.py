@@ -6,7 +6,12 @@ import shutil
 
 import send2trash
 
-fp_cmd = "D:\\ANSYS Fluent Projects\\temp"
+computer = 'seagull'
+
+if computer == 'seagull':
+    fp_cmd = r"D:\ANSYS Fluent Projects\temp"
+elif computer == 'lmps_cds':
+    fp_cmd = "/usrtmp/delachaux/temp"
 
 def create_folder(folder_path):
     """
@@ -82,8 +87,6 @@ def concatenate_txt_files(folder_path, output_file):
     # Write the concatenated text to the output file
     with open(output_file, 'w') as file:
         file.write(concatenated_text)
-
-import pandas as pd
 
 def create_dataframe_from_complex_text_file(file_path):
     with open(file_path, 'r') as file:
@@ -349,16 +352,22 @@ define/boundary-conditions pressure-outlet {name} no {value} no no no"""
         
     return template
 
-def change_named_expression(tui, named_expression, definition, unit):
+def save_journal(tui, string_list, file_name_wo_ext, read=True):
+    
+    concatenate_and_write_to_file(string_list, os.path.join(fp_cmd, f'{file_name_wo_ext}.txt'))
 
+    if read:
+        tui.file.read_journal(os.path.join(fp_cmd, f'{file_name_wo_ext}.txt'))
+    else:
+        pass
+
+def change_named_expression(tui, named_expression, definition, unit):
     string_list = [f"""define/named-expressions/edit \"{named_expression}\" definition "{definition} [{unit}]" quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_named_expression.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_named_expression.txt"')
+    save_journal(tui, string_list, 'change_named_expression')
 
 def create_named_expression(tui, named_expression, definition, unit) :
     string_list = [f"""define/named-expressions/add \"{named_expression}\" definition "{definition} [{unit}]" quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\create_named_expression.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\create_named_expression.txt"')
+    save_journal(tui, string_list, 'create_named_expression')
 
 def change_bc_wall(tui, name, type, thickness, temperature):
 
@@ -369,13 +378,11 @@ def change_bc_wall(tui, name, type, thickness, temperature):
     else:
         raise Exception('Invalid type')
     
-    concatenate_and_write_to_file(string_list, fp_cmd+'\\change_bc_wall.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_bc_wall.txt"')
+    save_journal(tui, string_list, 'change_bc_wall')
 
 def create_field(tui, named_expression, definition) :
     string_list = [f"""define/named-expressions/add \"{named_expression}\" definition "{definition}" quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\create_field.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\create_field.txt"')
+    save_journal(tui, string_list, 'create_field')
 
 def compute_surface_temperatures(tui, choice, fp):
     if choice == "pvt_slice_outdoor_Fluent_GMI_fins":
@@ -390,29 +397,25 @@ def compute_surface_temperatures(tui, choice, fp):
 (cx-gui-do cx-activate-item "Surface Integrals*PanelButtons*PushButton4(Write)")
 (cx-gui-do cx-set-file-dialog-entries "Select File" '( "{fp}") "Surface Report Files (*.srp)")
 (cx-gui-do cx-activate-item "Surface Integrals*PanelButtons*PushButton2(Cancel)")]"""]
-        concatenate_and_write_to_file(string_list,fp_cmd+'\\compute_surface_temperatures.txt')
-        tui.file.read_journal(f'"{fp_cmd}\\compute_surface_temperatures.txt"')
+        save_journal(tui, string_list, 'compute_surface_temperatures')
     else:
         raise Exception('Invalid choice')
 
 def change_report_file_path(tui, report_name, chosen_path):
 
     string_list = [f"""solve/report-files/edit/{report_name} file-name \"{chosen_path}\""""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_report_file_path.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_report_file_path.txt"')
+    save_journal(tui, string_list, 'change_report_file_path')
 
 def change_field(tui, named_expression, definition) :
     string_list = [f"""define/named-expressions/edit \"{named_expression}\" definition "{definition}" quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_existing_expression.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_existing_expression.txt"')
+    save_journal(tui, string_list, 'change_existing_expression')
 
 def change_gravity(tui, theta): # theta en rad
     #theta = np.deg2rad(theta)
     gravity_y = 9.81*np.sin(theta)
     gravity_z = 9.81*np.cos(theta)
     string_list = [f"""define/operating-conditions/gravity yes 0 {gravity_y} {gravity_z} quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_gravity.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_gravity.txt"')
+    save_journal(tui, string_list, 'change_gravity')
 
 def iterate(nb_it):
     return f"""solve/iterate {nb_it}
@@ -420,7 +423,7 @@ def iterate(nb_it):
 
 def write_residuals_file(tui, folder_path, output_file_name_wo_ext):
 
-    file_path = folder_path+f'\\{output_file_name_wo_ext}.txt'
+    file_path = os.path.join(folder_path, f'{output_file_name_wo_ext}.txt')
 
     template = f"""
 plot/residuals-set/plot-to-file "{file_path}" 
@@ -428,41 +431,27 @@ solve/iterate 1
 plot/residuals-set/end-plot-to-file
 """
     string_list = [template]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\write_residuals_file.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\write_residuals_file.txt"')
+    save_journal(tui, string_list, 'write_residuals_file')
 
 def write_data(tui, folder_path, output_file_name_wo_ext):
 
-    file_path = folder_path+f'\\{output_file_name_wo_ext}'
+    file_path = os.path.join(folder_path, f'{output_file_name_wo_ext}')
 
     template = f"""file/write-data "{file_path}"
     """
 
     string_list = [template]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\write_data.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\write_data.txt"')
+    save_journal(tui, string_list, 'write_data')
 
 def write_case(tui, folder_path, output_file_name_wo_ext):
 
-    file_path = folder_path+f'\\{output_file_name_wo_ext}'
+    file_path = os.path.join(folder_path, f'{output_file_name_wo_ext}.txt')
 
     template = f"""file/write-case "{file_path}"
     """
 
     string_list = [template]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\write_case.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\write_case.txt"')
-
-# def standard_initialization(tui, surface_index, gauge_pressure_value):
-#     string_list = [f"""/file/set-tui-version "22.2"
-# (cx-gui-do cx-activate-item "Ribbon*Frame1*Frame5(Solution)*Table1*Table3(Initialization)*ButtonBox1(Method)*PushButton4(Options)")
-# (cx-gui-do cx-set-list-selections "Solution Initialization*Table1*DropDownList1(Compute from)" '( {surface_index}))
-# (cx-gui-do cx-activate-item "Solution Initialization*Table1*DropDownList1(Compute from)")
-# (cx-gui-do cx-set-real-entry-list "Solution Initialization*Table1*Table7(Initial Values)*RealEntry1(Gauge Pressure)" '( {gauge_pressure_value}))
-# (cx-gui-do cx-activate-item "Solution Initialization*Table1*Table7(Initial Values)*RealEntry1(Gauge Pressure)")
-# (cx-gui-do cx-activate-item "Solution Initialization*Table1*Frame9*PushButton1(Initialize)")"""]
-#     concatenate_and_write_to_file(string_list,fp_cmd+'\\initialize.txt')
-#     tui.file.read_journal(f'"{fp_cmd}\\initialize.txt"')
+    save_journal(tui, string_list, 'write_case')
 
 def standard_initialization(tui, surface_index, gauge_pressure_value, x_velocity_value, y_velocity_value, z_velocity_value):
     string_list = [f"""/file/set-tui-version "22.2"
@@ -478,12 +467,12 @@ def standard_initialization(tui, surface_index, gauge_pressure_value, x_velocity
 (cx-gui-do cx-set-real-entry-list "Solution Initialization*Table1*Table7(Initial Values)*RealEntry4(Z Velocity)" '( {z_velocity_value}))
 (cx-gui-do cx-activate-item "Solution Initialization*Table1*Table7(Initial Values)*RealEntry4(Z Velocity)")
 (cx-gui-do cx-activate-item "Solution Initialization*Table1*Frame9*PushButton1(Initialize)")"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\initialize.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\initialize.txt"')
+
+    save_journal(tui, string_list, 'standard_initialization')
 
 def write_time(tui, folder_path, output_file_name_wo_ext):
 
-    file_path = folder_path+f'\\{output_file_name_wo_ext}.txt'
+    file_path = os.path.join(folder_path, f'{output_file_name_wo_ext}.txt')
 
     template = f"""
 file/start-transcript "{file_path}"
@@ -492,8 +481,7 @@ parallel/timer/reset
 file/stop-transcript
 """
     string_list = [template]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\write_time.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\write_time.txt"')
+    save_journal(tui, string_list, 'write_time')
 
 def hybrid_initialization():
     return f"""
@@ -516,12 +504,12 @@ def concatenate_and_write_to_file(strings, file_path):
 def convert_residuals_csv(folder_path,liste):
     df1 = pd.DataFrame()
     for i in liste:
-        file_path = folder_path+f'\\DP{i}_residuals_report.txt'
+        file_path = os.path.join(folder_path, f'DP{i}_residuals_report.txt')
         df2 = read_residuals(file_path)
         
         unique = pd.concat([df2, df1]).drop_duplicates(keep=False)
         unique.reset_index(drop=True,inplace=True)
-        unique.to_csv(folder_path+f'\\DP{i}_residuals_report.csv',index=True)
+        unique.to_csv(os.path.join(folder_path, f'DP{i}_residuals_report.csv'),index=True)
         df1 = pd.concat([df1,df2])
 
         # Check if file exists before trying to delete it
@@ -572,9 +560,9 @@ def convert_report(folder_path,file_name,column_name,output_folder_path,output_f
     else:
         pass
 
-    file_path = folder_path+'\\'+file_name
+    file_path = os.path.join(folder_path, f'{output_file_name_wo_extension}.txt')
 
-    parse_report_to_dataframe(file_path,column_name).to_csv(output_folder_path+'\\'+output_file_name_wo_extension+'.csv',index=False)
+    parse_report_to_dataframe(file_path,column_name).to_csv(os.path.join(output_folder_path, f'{output_file_name_wo_extension}.csv'),index=False)
 
     # Check if file exists before trying to delete it
     if os.path.exists(file_path):
@@ -588,38 +576,37 @@ def convert_parametric_reports(folder_path, report_type, liste):
 
 def change_bc_type(tui, name, type):
     string_list = [f"""define/boundary-conditions/zone-type {name} {type}"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_bc_type.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_bc_type.txt"')
+    save_journal(tui, string_list, 'change_bc_type')
 
 def write_report(tui,measure,output_folder_path,output_file_name_wo_ext):
 
     if measure == 'mdot':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(tui_write_report_massflow(fp_cmd + "\\output_temp.txt"))
+            file.write(tui_write_report_massflow(os.path.join(fp_cmd, "output_temp.txt")))
 
     elif measure == 'sp':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(gui_write_report_sp_prepared(fp_cmd + "\\output_temp.txt"))
+            file.write(gui_write_report_sp_prepared(os.path.join(fp_cmd, "output_temp.txt")))
 
     elif measure == 'ht':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(tui_write_report_ht(fp_cmd + "\\output_temp.txt"))
+            file.write(tui_write_report_ht(os.path.join(fp_cmd, "output_temp.txt")))
 
     elif measure == 'rad_ht':
         with open(os.path.join(fp_cmd,'cmd_temp.txt'), "w") as file:
-            file.write(tui_write_report_rad_ht(fp_cmd + "\\output_temp.txt"))
+            file.write(tui_write_report_rad_ht(os.path.join(fp_cmd, "output_temp.txt")))
 
     else:
         raise Exception('Invalid measure name')
 
-    tui.file.read_journal(f'"{fp_cmd}\\cmd_temp.txt"')
+    tui.file.read_journal(os.path.join(fp_cmd, "cmd_temp.txt"))
 
     convert_report(folder_path=fp_cmd,file_name='output_temp.txt',column_name=measure,output_folder_path=output_folder_path,output_file_name_wo_extension=f'{output_file_name_wo_ext}')
 
 def export(folder_path,name):
 
-    df = pd.read_csv(folder_path+f'\\mdot_report_{name}.csv')
-    df2 = pd.read_csv(folder_path+f'\\sp_report_{name}.csv')
+    df = pd.read_csv(os.path.join(folder_path, f'mdot_report_{name}.csv'))
+    df2 = pd.read_csv(os.path.join(folder_path, f'sp_report_{name}.csv'))
 
     merged_df = pd.merge(df, df2, on='Component')
     dff = merged_df[merged_df['Component'].str.contains('coll_ch|distrib_ch')]
@@ -645,28 +632,29 @@ def export(folder_path,name):
 
 def write_plot_xy(tui, name, output_folder_path, output_file_name_wo_ext):
 
+    file_path = os.path.join(output_folder_path, f'{output_file_name_wo_ext}.csv')
+
     template = f"""
 /file/set-tui-version "22.2"
 (cx-gui-do cx-set-list-tree-selections "NavigationPane*Frame2*Table1*List_Tree2" (list "Results|Plots|XY Plot|{name}"))
 (cx-gui-do cx-set-toggle-button2 "Solution XY Plot*Table1*Table1*ButtonBox1(Options)*CheckButton4(Write to File)" #t)
 (cx-gui-do cx-activate-item "Solution XY Plot*Table1*Table1*ButtonBox1(Options)*CheckButton4(Write to File)")
 (cx-gui-do cx-activate-item "Solution XY Plot*PanelButtons*PushButton1(OK)")
-(cx-gui-do cx-set-file-dialog-entries "Select File" '( "{output_folder_path}\\{output_file_name_wo_ext}.csv") "XY Files (*.xy)")"""
+(cx-gui-do cx-set-file-dialog-entries "Select File" '( "{file_path}") "XY Files (*.xy)")"""
     
     string_list = [template]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\write_plot_xy.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\write_plot_xy.txt"')
+    save_journal(tui, string_list, 'write_plot_xy')
 
 def change_mesh(tui, mesh_path, mesh_name_wo_ext):
-    file_path = mesh_path+f'\\{mesh_name_wo_ext}.msh.h5'
+    file_path = os.path.join(mesh_path, f'{mesh_name_wo_ext}.msh.h5')
     string_list = [f"""/file/set-tui-version "22.2"
 (cx-gui-do cx-activate-item "MenuBar*ReadSubMenu*Mesh...")
 (cx-gui-do cx-set-toggle-button2 "Read Mesh Options*Table1(Options)*ToggleBox1*Replace mesh" #t)
 (cx-gui-do cx-activate-item "Read Mesh Options*Table1(Options)*ToggleBox1*Replace mesh")
 (cx-gui-do cx-activate-item "Read Mesh Options*PanelButtons*PushButton1(OK)")
 (cx-gui-do cx-set-file-dialog-entries "Select File" '( "{file_path}") "CFF Mesh Files (*.msh.h5 )")"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\change_mesh.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\change_mesh.txt"')
+
+    save_journal(tui, string_list, 'change_mesh')
 
 def create_radiation(tui, S2S_fp, caoMeshCode): 
     string_list = [f"""/file/set-tui-version "22.2"
@@ -674,8 +662,7 @@ def create_radiation(tui, S2S_fp, caoMeshCode):
 (cx-gui-do cx-activate-item "Radiation Model*Table1*Frame3*Table1*Table2(View Factors and Clustering)*PushButton1( Compute/Write/Read)")
 (cx-gui-do cx-set-file-dialog-entries "Select File" '( "{os.path.join(S2S_fp,caoMeshCode)}.s2s.h5") "CFF S2S Files (*.s2s.h5 )")
 (cx-gui-do cx-activate-item "Radiation Model*PanelButtons*PushButton1(OK)")"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\create_radiation.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\create_radiation.txt"')
+    save_journal(tui, string_list, 'create_radiation')
 
 def read_radiation(tui, S2S_fp, caoMeshCode) :
     string_list = [f"""/file/set-tui-version "22.2"
@@ -683,17 +670,14 @@ def read_radiation(tui, S2S_fp, caoMeshCode) :
 (cx-gui-do cx-activate-item "Radiation Model*Table1*Frame3*Table1*Table2(View Factors and Clustering)*PushButton2(   Read Existing File)")
 (cx-gui-do cx-set-file-dialog-entries "Select File" '( "{os.path.join(S2S_fp,caoMeshCode)}.s2s.h5") "CFF S2S Files (*.s2s.h5 )")
 (cx-gui-do cx-activate-item "Radiation Model*PanelButtons*PushButton1(OK)")"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\read_radiation.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\read_radiation.txt"')
+    save_journal(tui, string_list, 'read_radiation')
 
 def compute_mass_flow_rate(tui, surface_name, output_folder_path, output_file_name_wo_ext):
     file_path = os.path.join(output_folder_path, output_file_name_wo_ext)
     string_list = [f"""report/surface-integrals/mass-flow-rate {surface_name} () yes \"{file_path}\" quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\compute_mass_flow_rate.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\compute_mass_flow_rate.txt"')
+    save_journal(tui, string_list, 'compute_mass_flow_rate')
 
 def compute_temp_avg(tui, surface_name, output_folder_path, output_file_name_wo_ext):
     file_path = os.path.join(output_folder_path, output_file_name_wo_ext)
     string_list = [f"""report/surface-integrals/facet-avg {surface_name} () temperature yes \"{file_path}\" quit"""]
-    concatenate_and_write_to_file(string_list,fp_cmd+'\\compute_temp_avg.txt')
-    tui.file.read_journal(f'"{fp_cmd}\\compute_temp_avg.txt"')
+    save_journal(tui, string_list, 'compute_temp_avg')
