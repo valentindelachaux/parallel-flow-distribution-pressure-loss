@@ -8,12 +8,15 @@ import random
 import string
 import send2trash
 
-computer = 'seagull'
+def set_computer(computer_name):
+    global computer
+    global fp_cmd
+    computer = computer_name
 
-if computer == 'seagull':
-    fp_cmd = r"D:\temp"
-elif computer == 'lmps_cds':
-    fp_cmd = "/usrtmp/delachaux/temp"
+    if computer == 'seagull':
+        fp_cmd = r"D:\temp"
+    elif computer == 'lmps_cds':
+        fp_cmd = "/usrtmp/delachaux/temp"
 
 def generate_unlikely_combination(length=5):
     # Define a large set of characters (e.g., all letters, digits, and punctuation)
