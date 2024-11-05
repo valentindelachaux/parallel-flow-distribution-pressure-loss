@@ -107,7 +107,7 @@ def calc(q_vect, par, cond, series = False):
     Reout = fds.core.Reynolds(uout,D_out,rho,mu=eta)
     fin = [fds.friction.friction_factor(Re = Rein[i],eD = ep/D_in) for i in range(N)]
 
-    if par['s'] == 1:
+    if par['specific_inter_panel'] == 1:
         for i in range(N):
             if (i >= 1) & (i % (par['N_riser_per_panel']) == 0):
                 fin[i] = par['inter_panel_coeff'] * D_in / (par['Ly'][i-1])
@@ -239,7 +239,7 @@ def compute_PL(q_sol, par, cond, series = False, fappx = 0.25):
 
     return df_PL    
 
-def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False):
+def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False, maxfev=0):
     """
     Résout le système d'équations pour trouver le champ des pressions et débits dans l'échangeur
     
@@ -313,7 +313,7 @@ def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False):
 
     X0 = initialize(q_init, par, cond, series)
 
-    Xsol = sc.fsolve(fun,X0)
+    Xsol = sc.fsolve(fun, X0, maxfev=maxfev)
 
     Qin, Qout, uin, ux, uout, Rein, Rex, Reout, fin, fx, fout, Kx_in, Ky_in, Kx_out, Ky_out, Lex = calc(Xsol[2*N:3*N], par, cond, series)
 
@@ -325,11 +325,16 @@ def PL_fsolve(par,cond, q_init=[], fappx = 0.25, series=False):
 
     df_u = pd.DataFrame((list(zip(uin,ux,uout))), columns=['uin', 'ux', 'uout'])
     df_u = df_u[::-1].reset_index(drop=True)
+
     df_K = pd.DataFrame((list(zip(Kx_in, Ky_in, Kx_out, Ky_out))), columns=['Kx_in', 'Ky_in', 'Kx_out', 'Ky_out'])
     df_K = df_K[::-1].reset_index(drop=True)
 
     df_Re = pd.DataFrame((list(zip(Rein, Rex, Reout))), columns=['Rein', 'Rex', 'Reout'])
     df_Re = df_Re[::-1].reset_index(drop=True)
+
+    df_f = pd.DataFrame((list(zip(fin, fx, fout))), columns=['fin', 'fx', 'fout'])
+
+    df_PL = pd.concat([df_PL, df_u, df_Re, df_K, df_f], axis=1)
 
     return df, Xsol[N-1- ref], df_PL, fun(Xsol)
 

@@ -241,84 +241,147 @@ def range_cond_solve(par, list_Qmax, list_proportion = np.arange(0.1, 1.1, 0.1) 
     for i in range(len(df_cond)):
         cond = condition(df_cond.loc[i])
         tabl, residuals = PL_fsolve(par, cond)
-        df_DP = pd.DataFrame({'Pin_c':tabl.iloc[N-1 - ref]['Pout'], 'Pin_d':tabl.iloc[N-1 - ref]['Pin'], 'Pout_d':tabl.iloc[ref]['Pout']}, index=[i])
+        df_DP = pd.DataFrame({'P_coll_inlet':tabl.iloc[N-1 - ref]['Pout'], 'P_distrib_inlet':tabl.iloc[N-1 - ref]['Pin'], 'P_distrib_outlet':tabl.iloc[ref]['Pout']}, index=[i])
         df_results = pd.concat([df_results, df_DP], ignore_index=True)
     
     df_results = df_cond.join(df_results)
     return df_results
 
-def transfer_func(df_testings, type='polynomial', deg_a=2, deg_q =2, initial_guess_logistic=[-3, 0.4, 1, 1]):
-    """
-    Créer les fonctions de transfert des pertes de charges totales en fonction de Qin_d et alpha, à Qmax donné (df_testings est à Qmax donné)
+# def transfer_func(df_testings, type='polynomial', deg_a=2, deg_q =2, initial_guess_logistic=[-3, 0.4, 1, 1]):
+#     """
+#     Créer les fonctions de transfert des pertes de charges totales en fonction de Qin_d et alpha, à Qmax donné (df_testings est à Qmax donné)
 
-    Args : 
-        df_testings : dataframe contenant les tests de pertes de charges
-        type : str, 'polynomial' ou 'logistic'
-        degree : int, degré du polynôme 
+#     Args : 
+#         df_testings : dataframe contenant les tests de pertes de charges
+#         type : str, 'polynomial' ou 'logistic'
+#         degree : int, degré du polynôme 
         
-    Returns :
-        DPin : fonction de transfert des pertes de charges régulières manifold inlet
-        DPout : fonction de transfert des pertes de charges régulières manifold outlet
-        DPx : fonction de transfert des pertes de charges régulières canaux
-    """
-    df_testings['DPd'] = df_testings['Pin_d'] - df_testings['Pout_d']
+#     Returns :
+#         DPin : fonction de transfert des pertes de charges régulières manifold inlet
+#         DPout : fonction de transfert des pertes de charges régulières manifold outlet
+#         DPx : fonction de transfert des pertes de charges régulières canaux
+#     """
+#     # df_testings['DPd'] = df_testings['Pin_d'] - df_testings['Pout_d']
 
-    # trouver les coefficients tels que DP = a*alpha^2 + b*alpha + c , à Qin donné
-    if type == 'polynomial':
-        n = deg_a+1
-    elif type == 'logistic':
-        n = 4
-    columns = ['Qin_d'] + [f'D_{i}' for i in range(n)] + [f'C_{i}' for i in range(deg_a+1)] + [f'DC_{i}' for i in range(deg_a+1)]
+#     # trouver les coefficients tels que DP = a*alpha^2 + b*alpha + c , à Qin donné
+#     if type == 'polynomial':
+#         n = deg_a+1
+#     elif type == 'logistic':
+#         n = 4
+#     columns = ['Qin_d'] + [f'D_{i}' for i in range(n)] + [f'C_{i}' for i in range(deg_a+1)] + [f'DC_{i}' for i in range(deg_a+1)]
+#     df_coefficients = pd.DataFrame(columns=columns)
+#     Qin_list = df_testings['Qin_d'].unique()
+#     for Qin in Qin_list:
+#         mask = df_testings['Qin_d'] == Qin
+#         alpha = np.array(df_testings[mask]['alpha'])  
+#         DPd = np.array(df_testings[mask]['DPd']) 
+#         # DPc = np.array(df_testings[mask]['Pin_c'])
+#         DPc = np.array(df_testings[mask]['DPc'])
+#         # DPdc = np.array(df_testings[mask]['Pout_d'])
+#         DPdc = np.array(df_testings[mask]['DPdc'])
+#         coefficients_c = np.polyfit(alpha, DPc, deg_a)
+#         coefficients_dc = np.polyfit(alpha, DPdc, deg_a)
+#         if type == 'polynomial':
+#             coefficients_d = np.polyfit(alpha, DPd, deg_a)
+#         else :
+#             coefficients_d, _ = curve_fit(logistique, alpha, DPd, p0=initial_guess_logistic, maxfev=1000000)
+
+#         df_coefficients.loc[len(df_coefficients)] = [Qin] + list(coefficients_d) + list(coefficients_c) + list(coefficients_dc)
+
+#     # trouver la matrice tels que les coefficients (a, b, c) = M.(Qin^2, Qin, 1)
+#     def M(Qin_list, df_coefficient):
+#         matrix = pd.DataFrame(columns=[i for i in range(deg_q+1)])
+#         for column in df_coefficient.columns:
+#             COEFF = np.polyfit(Qin_list, list(df_coefficient[column]), deg_q)
+#             matrix.loc[len(matrix)] = COEFF
+#         return matrix
+    
+#     coefficients_d = df_coefficients[[f'D_{i}' for i in range(n)]]
+#     coefficients_c = df_coefficients[[f'C_{i}' for i in range(deg_a+1)]]
+#     coefficients_dc = df_coefficients[[f'DC_{i}' for i in range(deg_a+1)]]
+
+#     MATRIX_d = M(Qin_list, coefficients_d)
+#     MATRIX_c = M(Qin_list, coefficients_c)
+#     MATRIX_dc = M(Qin_list, coefficients_dc)
+
+#     # la fonction DP = f(Qin, alpha) = [M.(Qin^2, Qin, 1)].(alpha^2, alpha, 1)
+#     def DPd(Qin, alpha):
+#         coeffs = np.matmul(MATRIX_d, np.array([Qin**(deg_q-i) for i in range(deg_q+1)]))
+#         if type == 'polynomial':
+#             PL = np.matmul(coeffs, np.array([alpha**(deg_a-i) for i in range(deg_a+1)]))
+#         else:
+#             PL = logistique(alpha, *coeffs)
+#         return PL
+
+#     def DPc(Qin, alpha):
+#         coeffs = np.matmul(MATRIX_c, np.array([Qin**(deg_q-i) for i in range(deg_q+1)]))
+#         return np.matmul(coeffs, np.array([alpha**(deg_a-i) for i in range(deg_a+1)]))
+
+#     def DPdc(Qin, alpha):
+#         coeffs = np.matmul(MATRIX_dc, np.array([Qin**(deg_q-i) for i in range(deg_q+1)]))
+#         return np.matmul(coeffs, np.array([alpha**(deg_a-i) for i in range(deg_a+1)]))
+
+#     return DPd, DPc, DPdc
+
+def transfer_func(df_testings, deg_a=2, deg_q=2):
+    """
+    Creates transfer functions for total pressure drop as a function of Qin_d and alpha at a given Qmax (df_testings should be filtered for a specific Qmax).
+
+    Args:
+        df_testings: DataFrame containing pressure drop test results.
+        deg_a: int, degree of the polynomial in terms of alpha.
+        deg_q: int, degree of the polynomial in terms of Qin.
+
+    Returns:
+        DPd: function for transfer of regular manifold inlet pressure drops.
+        DPc: function for transfer of regular manifold outlet pressure drops.
+        DPdc: function for transfer of regular channel pressure drops.
+    """
+    # Identify unique flow rates and create a DataFrame to store polynomial coefficients
+    n = deg_a + 1
+    columns = ['Qin_d'] + [f'D_{i}' for i in range(n)] + [f'C_{i}' for i in range(n)] + [f'DC_{i}' for i in range(n)]
     df_coefficients = pd.DataFrame(columns=columns)
+
+    # Process each unique Qin value to fit polynomial coefficients for DPc, DPd, and DPdc
     Qin_list = df_testings['Qin_d'].unique()
     for Qin in Qin_list:
         mask = df_testings['Qin_d'] == Qin
-        alpha = np.array(df_testings[mask]['alpha'])  
-        DPd = np.array(df_testings[mask]['DPd']) 
-        DPc = np.array(df_testings[mask]['Pin_c'])
-        DPdc = np.array(df_testings[mask]['Pout_d'])
+        alpha = np.array(df_testings[mask]['alpha'])
+        DPd = np.array(df_testings[mask]['DPd'])
+        DPc = np.array(df_testings[mask]['DPc'])
+        DPdc = np.array(df_testings[mask]['DPdc'])
+
+        coefficients_d = np.polyfit(alpha, DPd, deg_a)
         coefficients_c = np.polyfit(alpha, DPc, deg_a)
         coefficients_dc = np.polyfit(alpha, DPdc, deg_a)
-        if type == 'polynomial':
-            coefficients_d = np.polyfit(alpha, DPd, deg_a)
-        else :
-            coefficients_d, _ = curve_fit(logistique, alpha, DPd, p0=initial_guess_logistic, maxfev=1000000)
 
         df_coefficients.loc[len(df_coefficients)] = [Qin] + list(coefficients_d) + list(coefficients_c) + list(coefficients_dc)
 
-
-    # trouver la matrice tels que les coefficients (a, b, c) = M.(Qin^2, Qin, 1)
-    def M(Qin_list, df_coefficient):
-        matrix = pd.DataFrame(columns=[i for i in range(deg_q+1)])
-        for column in df_coefficient.columns:
-            COEFF = np.polyfit(Qin_list, list(df_coefficient[column]), deg_q)
-            matrix.loc[len(matrix)] = COEFF
+    # Define a function to calculate the transformation matrix for polynomial coefficients with respect to Qin
+    def create_transformation_matrix(Qin_list, coefficients_df):
+        matrix = pd.DataFrame(columns=[i for i in range(deg_q + 1)])
+        for column in coefficients_df.columns:
+            poly_coeffs = np.polyfit(Qin_list, list(coefficients_df[column]), deg_q)
+            matrix.loc[len(matrix)] = poly_coeffs
         return matrix
-    
-    coefficients_d = df_coefficients[[f'D_{i}' for i in range(n)]]
-    coefficients_c = df_coefficients[[f'C_{i}' for i in range(deg_a+1)]]
-    coefficients_dc = df_coefficients[[f'DC_{i}' for i in range(deg_a+1)]]
 
-    MATRIX_d = M(Qin_list, coefficients_d)
-    MATRIX_c = M(Qin_list, coefficients_c)
-    MATRIX_dc = M(Qin_list, coefficients_dc)
+    # Generate transformation matrices for each pressure drop type
+    MATRIX_d = create_transformation_matrix(Qin_list, df_coefficients[[f'D_{i}' for i in range(n)]])
+    MATRIX_c = create_transformation_matrix(Qin_list, df_coefficients[[f'C_{i}' for i in range(n)]])
+    MATRIX_dc = create_transformation_matrix(Qin_list, df_coefficients[[f'DC_{i}' for i in range(n)]])
 
-    # la fonction DP = f(Qin, alpha) = [M.(Qin^2, Qin, 1)].(alpha^2, alpha, 1)
+    # Define the transfer functions for DPd, DPc, and DPdc
     def DPd(Qin, alpha):
-        coeffs = np.matmul(MATRIX_d, np.array([Qin**(deg_q-i) for i in range(deg_q+1)]))
-        if type == 'polynomial':
-            PL = np.matmul(coeffs, np.array([alpha**(deg_a-i) for i in range(deg_a+1)]))
-        else:
-            PL = logistique(alpha, *coeffs)
-        return PL
+        coeffs = np.matmul(MATRIX_d, np.array([Qin ** (deg_q - i) for i in range(deg_q + 1)]))
+        return np.matmul(coeffs, np.array([alpha ** (deg_a - i) for i in range(deg_a + 1)]))
 
     def DPc(Qin, alpha):
-        coeffs = np.matmul(MATRIX_c, np.array([Qin**(deg_q-i) for i in range(deg_q+1)]))
-        return np.matmul(coeffs, np.array([alpha**(deg_a-i) for i in range(deg_a+1)]))
+        coeffs = np.matmul(MATRIX_c, np.array([Qin ** (deg_q - i) for i in range(deg_q + 1)]))
+        return np.matmul(coeffs, np.array([alpha ** (deg_a - i) for i in range(deg_a + 1)]))
 
     def DPdc(Qin, alpha):
-        coeffs = np.matmul(MATRIX_dc, np.array([Qin**(deg_q-i) for i in range(deg_q+1)]))
-        return np.matmul(coeffs, np.array([alpha**(deg_a-i) for i in range(deg_a+1)]))
+        coeffs = np.matmul(MATRIX_dc, np.array([Qin ** (deg_q - i) for i in range(deg_q + 1)]))
+        return np.matmul(coeffs, np.array([alpha ** (deg_a - i) for i in range(deg_a + 1)]))
 
     return DPd, DPc, DPdc
 
@@ -358,7 +421,6 @@ def PL_fsolve_MPE(N_MPE, Qmax, DPd, DPc, DPdc):
         P_c = IN_P(X)
         Pout_list = [P_c[i] - DPd(Q_c[i],X[i]/Q_c[i]) - DPdc(Q_c[i],X[i]/Q_c[i]) for i in range(N_MPE)]
         return np.array(Pout_list)
-
 
     def FUN(X):
         q_vect = X[1:]

@@ -6,12 +6,38 @@ import hx_hydraulic as hxhy
 from CoolProp.CoolProp import PropsSI
 import model_fsolve as modf
 
+import utils.conversion as conv
+
+def change_Vdot(cond, Vdot):
+    
+    cond["Vdot"] = Vdot
+    cond["Dv"] = conv.convert_flow_rate(Vdot, 'L/h', 'm3/s')
+
+def change_fluid(cond, fluid):
+    
+    cond["fluid"] = fluid["name"]
+    cond["glycol_rate"] = fluid["glycol_rate"]
+    fluid = hxhy.find_fluid(fluid)
+
+    cond["rho"] = PropsSI('D', 'P', cond["p"], 'T', cond["T"], fluid) 
+    cond["eta"] = PropsSI('V', 'P', cond["p"], 'T', cond["T"], fluid)
+    cond["nu"] = cond["eta"]/cond["rho"]
+
+def change_temperature(cond, T, fluid):
+
+    fluid = hxhy.find_fluid(fluid)
+
+    cond["T"] = T
+    cond["rho"] = PropsSI('D', 'P', cond["p"], 'T', cond["T"], fluid) # kg/m3
+    cond["eta"] = PropsSI('V', 'P', cond["p"], 'T', cond["T"], fluid)
+    cond["nu"] = cond["eta"]/cond["rho"]
 
 def initialize(path, file_name):
     file_path = path+file_name
 
     hx = hxhy.hx_harp(dp.create_dict_from_excel(path,file_name,"heat_exchanger"))
     par = hx.make_dict()
+    
     condi = pd.read_excel(file_path,sheet_name="conditions",header=0)
     condi0 = dp.create_dict_from_df_row(condi,0)
     condi0["p"] *= 1E5
@@ -70,6 +96,7 @@ def create_excel(list_Vdot, list_PL, list_tabl, list_agdf, file_name):
     # Save the Excel file
     writer.close()
 
+from tqdm import tqdm
 
 def testing_series_Qmax(Qmax, list_Qin, list_alpha, par, cond, to_excel=False, file_name=None):
     ref = par["ref"]
@@ -78,13 +105,18 @@ def testing_series_Qmax(Qmax, list_Qin, list_alpha, par, cond, to_excel=False, f
     df_QF['Qin_c'] = Qmax - df_QF['Qin_d']
     df_alpha = pd.DataFrame({'alpha' : list_alpha})
     df_cond_testings = df_QF.merge(df_alpha, how='cross')
-    for i in range(len(df_cond_testings)):
+
+    for i in tqdm(range(len(df_cond_testings)), total=len(df_cond_testings)):
         tabl, PL, df_PL, residuals = modf.PL_fsolve(par,cond, series=list(df_cond_testings.loc[i]))
         N = len(tabl)
-        df_cond_testings.loc[i,"Pin_d"] = tabl.iloc[0]['Pin']
-        df_cond_testings.loc[i,"Pout_d"] = tabl.iloc[N-1]['Pin']
-        df_cond_testings.loc[i,"Pin_c"] = tabl.iloc[ref]['Pout']
-        df_cond_testings.loc[i,"Pout_c"] = tabl.iloc[N-1-ref]['Pout']
+        df_cond_testings.loc[i,"P_distrib_inlet"] = tabl.iloc[0]['Pin']
+        df_cond_testings.loc[i,"P_distrib_outlet"] = tabl.iloc[N-1]['Pin']
+        df_cond_testings.loc[i,"P_coll_inlet"] = tabl.iloc[ref]['Pout']
+        df_cond_testings.loc[i,"P_coll_outlet"] = tabl.iloc[N-1-ref]['Pout']
+
+        df_cond_testings['DPd'] = df_cond_testings['P_distrib_inlet'] - df_cond_testings['P_distrib_outlet']
+        df_cond_testings['DPc'] = df_cond_testings['P_coll_inlet'] - df_cond_testings['P_coll_outlet']
+        df_cond_testings['DPdc'] = df_cond_testings['P_distrib_inlet'] - df_cond_testings['P_coll_inlet']
 
     if to_excel:
         df_cond_testings.to_excel(file_name)
